@@ -7,7 +7,7 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	idx := make(index)
+	idx := make(Index)
 
 	assert.Nil(t, idx.search("foo"))
 	assert.Nil(t, idx.search("donut"))
