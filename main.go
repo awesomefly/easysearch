@@ -9,7 +9,7 @@ import (
 func main() {
 	var dumpPath, query string
 	flag.StringVar(&dumpPath, "p", "/Users/bytedance/Downloads/enwiki-latest-abstract1.xml.gz", "wiki abstract dump path")
-	flag.StringVar(&query, "q", "Small wild cat", "search query")
+	flag.StringVar(&query, "q", "Small cat", "search query")
 	flag.Parse()
 
 	log.Println("Starting simplefts")
@@ -23,7 +23,7 @@ func main() {
 
 	start = time.Now()
 	idx := make(Index)
-	idx.add(docs)
+	idx.Add(docs)
 	log.Printf("Indexed %d documents in %v", len(docs), time.Since(start))
 
 	start = time.Now()
