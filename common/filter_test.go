@@ -1,9 +1,8 @@
 package common
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestLowercaseFilter(t *testing.T) {

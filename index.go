@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/chenquan1988/simplefts/common"
 	"github.com/chenquan1988/simplefts/score"
+	"github.com/chenquan1988/simplefts/word2vec"
 	"github.com/go-nlp/bm25"
 	"github.com/go-nlp/tfidf"
 	"github.com/xtgo/set"
@@ -51,7 +52,8 @@ func IfElseInt(condition bool, o1 int, o2 int) int {
 	return o2
 }
 
-// CalDocScore todo: 拟合函数计算文档分
+// CalDocScore
+// todo: 拟合函数计算文档分
 func CalDocScore(frequency int, pagerank int) float64 {
 	return float64(frequency * 1.0)
 }
@@ -66,7 +68,7 @@ func (idx Index) Add(docs []document) {
 	var tokenId int
 	for _, doc := range docs {
 		var ts []int
-		for _, token := range common.analyze(doc.Text) {
+		for _, token := range common.Analyze(doc.Text) {
 			//tfidf doc's token id list
 			if _, ok := tokenCorpus[token]; !ok {
 				tokenCorpus[token] = tokenId
@@ -124,6 +126,51 @@ func InterInt(a []int, b []int) []int {
 	return r
 }
 
+// MergeInt returns the unique set a union b.
+// a and b have to be sorted in ascending order and contain no duplicates.
+func MergeInt(a []int, b []int) []int {
+	r := make([]int, 0, len(a)+len(b))
+	var i, j int
+	for i < len(a) && j < len(b) {
+		if a[i] < b[j] {
+			r = append(r, a[i])
+			i++
+		} else if a[i] > b[j] {
+			r = append(r, b[j])
+			j++
+		} else {
+			r = append(r, a[i])
+			i++
+			j++
+		}
+	}
+	return r
+}
+
+// DiffInt returns the diff set a between b.
+// a and b have to be sorted in ascending order and contain no duplicates.
+func DiffInt(a []int, b []int) []int {
+	minLen := len(a)
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+	r := make([]int, 0, minLen)
+	var i, j int
+	for i < len(a) && j < len(b) {
+		if a[i] < b[j] {
+			r = append(r, a[i])
+			i++
+		} else if a[i] > b[j] {
+			r = append(r, b[j])
+			j++
+		} else {
+			i++
+			j++
+		}
+	}
+	return r
+}
+
 // Inter returns the set intersection between a and b that score accumulated.
 // a and b have to be sorted in desc order by score and contain no duplicates.
 func Inter(a PostingList, b PostingList) PostingList {
@@ -141,21 +188,49 @@ func Inter(a PostingList, b PostingList) PostingList {
 	return result
 }
 
-func (idx Index) retrieval(text string, k int, r int) []int {
+// Retrieval returns top k docs sorted by bm25
+// todo: posting list compress and fast intersection
+// https://blog.csdn.net/weixin_39890629/article/details/111268898
+func (idx Index) Retrieval(must string, should string, not string, k int, r int) []int {
 	var result []int
-	terms := common.analyze(text)
-	for _, term := range terms {
+	mustTerms := common.Analyze(must) // 分词
+	for _, term := range mustTerms {
+		if pl, ok := idx[term]; ok {
+			plr := pl[:IfElseInt(len(pl)>r, r, len(pl))] //胜者表按frequency排序,截断前r个,加速归并
+			if result == nil {
+				result = plr.IDs()
+			} else {
+				result = InterInt(result, plr.IDs())
+			}
+		} else {
+			// Token doesn't exist.
+			continue
+		}
+	}
+
+	shouldTerms := idx.paraphrase(mustTerms) // 语义改写，即近义词扩展
+	shouldTerms = append(shouldTerms, common.Analyze(should)...) // 分词
+	for _, term := range shouldTerms {
 		if pl, ok := idx[term]; ok {
 			plr := pl[:IfElseInt(len(pl)>r, r, len(pl))]
 			if result == nil {
 				result = plr.IDs()  //胜者表，截断r
 			} else {
-				//todo: Extend boolean queries to support OR and NOT.
-				result = InterInt(result, plr.IDs())
+				result = MergeInt(result, plr.IDs())
 			}
 		} else {
 			// Token doesn't exist.
-			return nil
+			continue
+		}
+	}
+
+	notTerms := common.Analyze(not) // 分词
+	for _, term := range notTerms {
+		if pl, ok := idx[term]; ok {
+			result = DiffInt(result, pl.IDs())
+		} else {
+			// Token doesn't exist.
+			continue
 		}
 	}
 
@@ -172,7 +247,7 @@ func (idx Index) retrieval(text string, k int, r int) []int {
 	tf := score.NewTFIDF(docs)
 
 	var query score.BM25Document
-	for _, term := range terms {
+	for _, term := range mustTerms {
 		query = append(query, tokenCorpus[term])
 	}
 
@@ -192,10 +267,21 @@ func (idx Index) retrieval(text string, k int, r int) []int {
 	return final
 }
 
+func (idx Index) paraphrase(texts []string) []string {
+	path := "/Users/bytedance/go/src/github.com/simplefts/data/model.word2vec.format.bin"
+	model := word2vec.Load(path)
+
+	var (
+		positive = texts
+		negative []string
+	)
+	return word2vec.GetSimilar(model, positive, negative, len(texts)+3)[len(texts):]
+}
+
 // search queries the index for the given text.
-// todo: retrieval(pagerank+frequency) -> sort(bm25) -> 粗排sort(CTR by LR) -> 精排sort(CVR by DNN) -> topN(堆排序)
+// todo: multiply retrieval -> 粗排sort(CTR by LR) -> 精排sort(CVR by DNN) -> topN(堆排序)
 func (idx Index) search(text string) []int {
-	// todo: 搜索词改写、向量检索
-	r := idx.retrieval(text, 10, 1000)
+	// todo: 向量检索
+	r := idx.Retrieval(text, "", "", 10, 1000)
 	return r
 }

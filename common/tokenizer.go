@@ -13,8 +13,8 @@ func tokenize(text string) []string {
 	})
 }
 
-// analyze analyzes the text and returns a slice of tokens.
-func analyze(text string) []string {
+// Analyze analyzes the text and returns a slice of tokens.
+func Analyze(text string) []string {
 	tokens := tokenize(text)
 	tokens = lowercaseFilter(tokens)
 	tokens = stopwordFilter(tokens)
