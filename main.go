@@ -4,6 +4,10 @@ import (
 	"flag"
 	"log"
 	"time"
+
+	"github.com/awesomefly/simplefts/index"
+
+	"github.com/awesomefly/simplefts/store"
 )
 
 func main() {
@@ -15,19 +19,20 @@ func main() {
 	log.Println("Starting simplefts")
 
 	start := time.Now()
-	docs, err := loadDocuments(dumpPath)
+	docs, err := store.LoadDocuments(dumpPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("Loaded %d documents in %v", len(docs), time.Since(start))
 
 	start = time.Now()
-	idx := make(Index)
+	idx := make(index.HashIndex)
 	idx.Add(docs)
 	log.Printf("Indexed %d documents in %v", len(docs), time.Since(start))
 
 	start = time.Now()
-	matchedIDs := idx.search(query)
+	searcher := NewSearcher()
+	matchedIDs := searcher.Search(query)
 	log.Printf("Search found %d documents in %v", len(matchedIDs), time.Since(start))
 
 	for _, id := range matchedIDs {

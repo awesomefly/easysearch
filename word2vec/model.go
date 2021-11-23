@@ -1,10 +1,13 @@
 package word2vec
 
+// https://pkg.go.dev/code.sajari.com/word2vec#section-readme
+//https://github.com/sajari/word2vec
 import (
 	"log"
 	"os"
+
+	"code.sajari.com/word2vec"
 )
-import "code.sajari.com/word2vec"
 
 func Load(path string) *word2vec.Model {
 	// Load the model from an io.Reader (i.e. a file).
@@ -25,7 +28,6 @@ func Load(path string) *word2vec.Model {
 	return model
 }
 
-
 func GetSimilar(model *word2vec.Model, positive []string, negative []string, n int) []string {
 	// Create an expression.
 	expr := word2vec.Expr{}
@@ -43,7 +45,7 @@ func GetSimilar(model *word2vec.Model, positive []string, negative []string, n i
 	}
 
 	var result []string
-	for _, match := range matches{
+	for _, match := range matches {
 		result = append(result, match.Word)
 	}
 	return result

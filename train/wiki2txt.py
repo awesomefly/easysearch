@@ -17,6 +17,7 @@ def read_sample():
             i += 1
 
 
+# train corpus source  https://dumps.wikimedia.org/enwiki/latest/
 # xml to txt
 def wiki_to_txt():
     corpus_path = "/Users/bytedance/Downloads/enwiki-latest-pages-articles11.xml-p6899367p7054859.bz2"
@@ -51,6 +52,6 @@ def convert2simple():
 
 
 if __name__ == "__main__":
-    #wiki_to_txt()
+    # wiki_to_txt()
     read_sample()
     # convert2simple()
