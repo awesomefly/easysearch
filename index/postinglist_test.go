@@ -8,26 +8,33 @@ import (
 )
 
 func TestPostingList(t *testing.T) {
-	it := PostingItem{
-		ID:        1,
-		Frequency: 30,
-		Score:     10.11,
+	it := Doc{
+		ID:    1,
+		TF:    30,
+		Score: 10.11,
 	}
 
-	it2 := PostingItem{
-		ID:        2,
-		Frequency: 20,
-		Score:     20.22,
+	it2 := Doc{
+		ID:    2,
+		TF:    20,
+		Score: 20.22,
 	}
+
+	bb := it.Bytes()
+	it3 := Doc{}
+	it3.FromBytes(bb)
+	fmt.Printf("it3: %+v\n", it3)
 
 	var pl PostingList
 	pl = append(pl, it)
 	pl = append(pl, it2)
 
-	fmt.Printf("%+v\n", pl)
+	fmt.Printf("pl:%+v\n", pl)
 
 	bytes := pl.Bytes()
-	pl2 := FromBytes(bytes)
-	fmt.Printf("%+v\n", pl2)
+
+	var pl2 PostingList
+	pl2.FromBytes(bytes)
+	fmt.Printf("pl2:%+v\n", pl2)
 	assert.Equal(t, len(pl), len(pl2))
 }

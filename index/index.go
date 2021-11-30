@@ -1,14 +1,20 @@
 package index
 
 import (
-	"github.com/awesomefly/simplefts/score"
 	"github.com/awesomefly/simplefts/store"
 )
 
-type Index interface {
-	Add(docs []store.Document)
-	Retrieval(must []string, should []string, not []string, k int, r int) []int
+type BM25Parameters struct {
+	K1 float64
+	B  float64
 }
 
-var TokenCorpus = make(map[string]int)
-var DocCorpus = make(map[int]score.BM25Document)
+type Options struct {
+	StoreFile string // Summary file
+	BM25Parameters
+}
+
+type Index interface {
+	Add(docs []store.Document)
+	Retrieval(must []string, should []string, not []string, k int, r int) []Doc
+}

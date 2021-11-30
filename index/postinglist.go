@@ -1,54 +1,117 @@
 package index
 
 import (
-	"reflect"
+	"bytes"
+	"encoding/binary"
 	"sort"
-	"unsafe"
+
+	"github.com/xtgo/set"
 )
 
-type PostingItem struct {
-	ID        int     //doc id
-	Frequency int     //词频
-	Score     float64 //静态分
+type KeyWord struct {
+	K  string //key
+	Id int32  //key id
+	DF int32  //Document Frequency
 }
 
-type PostingList []PostingItem
+type Doc struct {
+	ID     int32   //doc id
+	DocLen int32   //doc length
+	Score  float64 //静态分
+
+	TF   int32   //词频
+	BM25 float64 //bm25 score
+}
+
+func (it Doc) Bytes() []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	err := binary.Write(buffer, binary.LittleEndian, it)
+	if err != nil {
+		panic(err)
+	}
+	return buffer.Bytes()
+}
+
+func (it *Doc) FromBytes(b []byte) {
+	buffer := bytes.NewBuffer(b)
+
+	err := binary.Read(buffer, binary.LittleEndian, it)
+	if err != nil {
+		panic(err)
+	}
+}
+
+type PostingList []Doc
 
 func (pl PostingList) Len() int           { return len(pl) }
-func (pl PostingList) Less(i, j int) bool { return pl[i].Score > pl[j].Score } //降序
+func (pl PostingList) Less(i, j int) bool { return pl[i].ID > pl[j].ID } //降序, sort by score
 func (pl PostingList) Swap(i, j int) {
-	pl[i].Score, pl[j].Score = pl[j].Score, pl[i].Score
-	pl[i].ID, pl[j].ID = pl[j].ID, pl[i].ID
+	pl[i], pl[j] = pl[j], pl[i]
 }
-func (pl PostingList) Find(id int) *PostingItem {
+
+func (pl PostingList) Find(id int) *Doc {
 	for _, item := range pl {
-		if item.ID == id {
+		if item.ID == int32(id) {
 			return &item
 		}
 	}
 	return nil
 }
+
 func (pl PostingList) IDs() []int {
 	ids := make([]int, 0, len(pl))
 	for _, item := range pl {
-		ids = append(ids, item.ID)
+		ids = append(ids, int(item.ID))
 	}
 	sort.Sort(sort.IntSlice(ids))
 	return ids
 }
-func (pl *PostingList) Bytes() []byte {
-	var x reflect.SliceHeader
-	x.Len = int(unsafe.Sizeof(*pl))
-	x.Cap = x.Len
-	x.Data = uintptr(unsafe.Pointer(pl))
-	return *(*[]byte)(unsafe.Pointer(&x))
+
+func (pl *PostingList) Inter(docs []Doc) {
+	l := len(*pl)
+	*pl = append(*pl, docs...)
+	size := set.Inter(pl, l)
+	*pl = (*pl)[:size]
 }
-func FromBytes(buf []byte) PostingList {
-	if buf == nil {
-		return nil
+
+func (pl *PostingList) Union(docs []Doc) {
+	l := len(*pl)
+	*pl = append(*pl, docs...)
+	size := set.Union(pl, l)
+	*pl = (*pl)[:size]
+}
+
+func (pl *PostingList) Filter(docs []Doc) {
+	l := len(*pl)
+	join := append(*pl, docs...)
+	size := set.Inter(join, l)
+	inter := join[:size]
+
+	*pl = append(*pl, inter...)
+	size = set.Diff(pl, l)
+	*pl = (*pl)[:size]
+}
+
+func (pl PostingList) Bytes() []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	for _, v := range pl {
+		err := binary.Write(buffer, binary.LittleEndian, v)
+		if err != nil {
+			panic(err)
+		}
 	}
-	pl := (*PostingList)(unsafe.Pointer(
-		(*reflect.SliceHeader)(unsafe.Pointer(&buf)).Data,
-	))
-	return *pl
+	return buffer.Bytes()
+}
+
+func (pl *PostingList) FromBytes(buf []byte) {
+	if buf == nil {
+		return
+	}
+
+	buffer := bytes.NewBuffer(buf)
+	for buffer.Len() > 0 {
+		var item Doc
+		binary.Read(buffer, binary.LittleEndian, &item)
+		*pl = append(*pl, item)
+	}
 }

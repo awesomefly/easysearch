@@ -25,7 +25,7 @@ func NewTFIDF(docs []BM25Document) *tfidf.TFIDF {
 func MostSimilar(docCorpus map[int]BM25Document, tokenCorpus map[string]int, q []string, docs []int, k int) []int {
 	// sort by bm25
 	// 相关性评分请先阅读：https://www.jianshu.com/p/1e498888f505
-	// todo: 词集过大时，docs无法完全放入内存，需要自行统计词频并计算score
+	// todo: 待废弃-词集过大时，docs无法完全放入内存，需要自行统计词频并计算score
 	var corpus []BM25Document
 	for _, ts := range docCorpus {
 		corpus = append(corpus, ts)
@@ -42,6 +42,7 @@ func MostSimilar(docCorpus map[int]BM25Document, tokenCorpus map[string]int, q [
 		resultDocs = append(resultDocs, docCorpus[id])
 	}
 
+	// todo: IDF计算公式不对
 	scores := bm25.BM25(tf, query, resultDocs, 2, 0.75)
 	sort.Sort(scores) //order by asc
 	//sort.Reverse(scores) //order by desc

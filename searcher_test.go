@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,8 +21,12 @@ func randSeq(n int) string {
 	return string(b)
 }
 
-var searcher = NewSearcher() //必须为全局变量
+func get(srh *Searcher, text string) []int {
+	curIdx := atomic.LoadUint32(&srh.writeIdx)
+	return srh.DoubleBuffer[1-curIdx].Index[text].IDs()
+}
 
+var searcher = NewSearcher("./data/test_insread") //必须为全局变量
 func BenchmarkDoubleBuffer(b *testing.B) {
 	//b.N = 10000
 	rand.Seed(time.Now().UnixNano())
@@ -31,7 +36,7 @@ func BenchmarkDoubleBuffer(b *testing.B) {
 	searcher.Add(store.Document{ID: 1, Text: "A donut on a glass plate. Only the donuts."})
 	for i := 0; i < b.N; i++ {
 		searcher.Add(store.Document{ID: 1, Text: randSeq(5)})
-		searcher.get("donut")
+		get(searcher, "donut")
 	}
 	fmt.Println("done")
 }
@@ -47,8 +52,8 @@ func BenchmarkDoubleBufferParallel(b *testing.B) {
 		for pb.Next() { //每个协程运行b.N个case
 			t := randSeq(5)
 			searcher.Add(store.Document{ID: 1, Text: t})
-			searcher.get("donut")
-			searcher.get(t)
+			get(searcher, "donut")
+			get(searcher, t)
 		}
 	})
 }

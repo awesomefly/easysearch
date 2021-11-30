@@ -26,6 +26,12 @@ func InterInt(a []int, b []int) []int {
 // MergeInt returns the unique set a union b.
 // a and b have to be sorted in ascending order and contain no duplicates.
 func MergeInt(a []int, b []int) []int {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
 	r := make([]int, 0, len(a)+len(b))
 	var i, j int
 	for i < len(a) && j < len(b) {
@@ -71,21 +77,22 @@ func DiffInt(a []int, b []int) []int {
 // FilterInt returns the set a filter b.
 // a and b have to be sorted in ascending order and contain no duplicates.
 func FilterInt(a []int, b []int) []int {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
-	r := make([]int, 0, minLen)
 	var i, j int
 	for i < len(a) && j < len(b) {
 		if a[i] < b[j] {
-			r = append(r, a[i])
 			i++
 		} else if a[i] > b[j] {
 			j++
 		} else {
+			a[i] = -1
 			i++
 			j++
+		}
+	}
+	r := make([]int, 0)
+	for _, v := range a {
+		if v != -1 {
+			r = append(r, v)
 		}
 	}
 	return r
