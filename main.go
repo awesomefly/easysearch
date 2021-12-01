@@ -3,12 +3,21 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"runtime/pprof"
 	"time"
 
-	"github.com/awesomefly/simplefts/store"
+	"github.com/awesomefly/simplefts/singleton"
+
+	"github.com/awesomefly/simplefts/index"
 )
 
 func main() {
+	f, _ := os.OpenFile("cpu.pprof", os.O_CREATE|os.O_RDWR, 0666)
+	defer f.Close()
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	var dumpPath, indexPath, query, module string
 	flag.StringVar(&module, "m", "searcher", "[indexer|searcher|merger]")
 
@@ -29,27 +38,30 @@ func main() {
 	log.Println("Starting simple fts")
 
 	if module == "indexer" {
-		Index(dumpPath, indexPath)
+		os.Remove(indexPath + ".idx")
+		os.Remove(indexPath + ".kv")
+		os.Remove(indexPath + ".sum")
+		singleton.Index(dumpPath, indexPath) //todo: 构建索引耗时过长，性能分析下具体耗时原因
 	} else if module == "searcher" {
 		start := time.Now()
-		docs, err := store.LoadDocuments(dumpPath)
+		docs, err := index.LoadDocuments(dumpPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 		log.Printf("Loaded %d documents in %v", len(docs), time.Since(start))
 
 		start = time.Now()
-		searcher := NewSearcher(indexPath)
-		log.Printf("Source index loaded %d keys in %v", searcher.PersistIndex.BT.Count(), time.Since(start))
+		searcher := singleton.NewSearcher(indexPath)
+		log.Printf("Source index loaded %d keys in %v", searcher.Segment.BT.Count(), time.Since(start))
 
-		matchedIDs := searcher.Search(query)
-		log.Printf("Search found %d documents in %v", len(matchedIDs), time.Since(start))
+		matched := searcher.Search(query)
+		log.Printf("Search found %d documents in %v", len(matched), time.Since(start))
 
-		for _, id := range matchedIDs {
-			doc := docs[id]
-			log.Printf("%d\t%s\n", id, doc.Text)
+		for _, d := range matched {
+			doc := docs[d.ID]
+			log.Printf("%d\t%s\n", d.ID, doc.Text)
 		}
 	} else if module == "merger" {
-		Merge(srcPath, dstPath)
+		singleton.Merge(srcPath, dstPath)
 	}
 }

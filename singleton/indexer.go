@@ -1,18 +1,17 @@
-package main
+package singleton
 
 import (
 	"log"
 	"time"
 
 	"github.com/awesomefly/simplefts/index"
-	"github.com/awesomefly/simplefts/store"
 )
 
 func Index(dumpPath, indexPath string) {
 	log.Println("Starting index...")
 
 	start := time.Now()
-	docs, err := store.LoadDocuments(dumpPath)
+	docs, err := index.LoadDocuments(dumpPath)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package common
+package util
 
 // InterInt returns the set intersection between a and b.
 // a and b have to be sorted in ascending order and contain no duplicates.

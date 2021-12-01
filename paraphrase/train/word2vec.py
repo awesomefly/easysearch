@@ -4,8 +4,8 @@ import string
 from gensim.models import word2vec, KeyedVectors
 import logging
 
-corpus_dir = "/Users/bytedance/go/src/github.com/simplefts/data/"
-project_dir = "/Users/bytedance/go/src/github.com/simplefts/data/"
+corpus_dir = "/data/"
+project_dir = "/data/"
 
 
 # 训练word2vec模型

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/awesomefly/simplefts/common"
+	"github.com/awesomefly/simplefts/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,12 +49,12 @@ func TestBTreeIndex(t *testing.T) {
 
 	ids := GetIDs(idx.Retrieval([]string{"donut"}, nil, nil, 100, 10))
 	assert.Equal(t, []int{2, 1}, ids)
-	assert.Equal(t, []int{2, 1}, GetIDs(idx.Retrieval(common.Analyze("DoNuts"), nil, nil, 100, 10)))
+	assert.Equal(t, []int{2, 1}, GetIDs(idx.Retrieval(util.Analyze("DoNuts"), nil, nil, 100, 10)))
 	assert.Equal(t, []int{1}, GetIDs(idx.Retrieval([]string{"glass"}, nil, nil, 100, 10)))
 
 	assert.Nil(t, GetIDs(idx.Retrieval([]string{"a"}, nil, nil, 100, 10)))
 	assert.Equal(t, []int{2, 1}, GetIDs(idx.Retrieval([]string{"donut"}, nil, nil, 100, 10)))
-	assert.Equal(t, []int{2, 1}, GetIDs(idx.Retrieval(common.Analyze("DoNuts"), nil, nil, 100, 10)))
+	assert.Equal(t, []int{2, 1}, GetIDs(idx.Retrieval(util.Analyze("DoNuts"), nil, nil, 100, 10)))
 	assert.Equal(t, []int{1}, GetIDs(idx.Retrieval([]string{"glass"}, nil, nil, 100, 10)))
 
 	idx.Close()

@@ -28,6 +28,7 @@ func Load(path string) *word2vec.Model {
 	return model
 }
 
+//GetSimilar 语义改写、近义词
 func GetSimilar(model *word2vec.Model, positive []string, negative []string, n int) []string {
 	// Create an expression.
 	expr := word2vec.Expr{}

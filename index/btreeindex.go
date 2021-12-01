@@ -35,8 +35,7 @@ import (
 	"unsafe"
 
 	btree "github.com/awesomefly/gobtree"
-	"github.com/awesomefly/simplefts/common"
-	"github.com/awesomefly/simplefts/store"
+	"github.com/awesomefly/simplefts/util"
 )
 
 var DefaultConfig = btree.Config{
@@ -72,7 +71,7 @@ func NewBTreeIndex(file string) *BTreeIndex {
 	conf := DefaultConfig
 	conf.Idxfile, conf.Kvfile = file+".idx", file+".kv"
 	bt := BTreeIndex{
-		BT: btree.NewBTree(btree.NewStore(conf)), // todo: 索引文件太大
+		BT: btree.NewBTree(btree.NewStore(conf)), // todo: 索引文件太大，索引压缩、posting list压缩
 	}
 
 	bt.Options.StoreFile = file + ".sum"
@@ -137,6 +136,10 @@ func (bt *BTreeIndex) Close() {
 	bt.Save()
 }
 
+func (bt *BTreeIndex) Clear() {
+	//todo: delete deprecated index
+}
+
 func (bt *BTreeIndex) Lookup(token string, dirty bool) PostingList {
 	key := &btree.TestKey{K: token}
 
@@ -164,9 +167,9 @@ func (bt *BTreeIndex) Lookup(token string, dirty bool) PostingList {
 	return p
 }
 
-func (bt *BTreeIndex) Add(docs []store.Document) {
+func (bt *BTreeIndex) Add(docs []Document) {
 	for _, doc := range docs {
-		tokens := common.Analyze(doc.Text)
+		tokens := util.Analyze(doc.Text)
 		for _, token := range tokens {
 			key := &btree.TestKey{K: token}
 			postingList := bt.Lookup(token, true)
@@ -246,6 +249,7 @@ func (bt *BTreeIndex) Retrieval(must []string, should []string, not []string, k 
 	for _, term := range should {
 		if pl := bt.Lookup(term, false); pl != nil {
 			plr := pl[:IfElseInt(len(pl) > r, r, len(pl))]
+			sort.Sort(plr)
 			if result == nil {
 				result = plr //胜者表，截断r
 			} else {

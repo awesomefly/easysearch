@@ -5,10 +5,7 @@ import (
 
 	"github.com/awesomefly/simplefts/score"
 
-	"github.com/xtgo/set"
-
-	"github.com/awesomefly/simplefts/common"
-	"github.com/awesomefly/simplefts/store"
+	"github.com/awesomefly/simplefts/util"
 )
 
 // HashIndex is an inverted index. It maps tokens to document IDs.
@@ -33,11 +30,11 @@ var DocCorpus = make(map[int]score.BM25Document)
 // Add adds documents to the index.
 // todo: Support indexing multiple document fields.
 // todo: Support distributed
-func (idx HashIndex) Add(docs []store.Document) {
+func (idx HashIndex) Add(docs []Document) {
 	var tokenID int
 	for _, doc := range docs {
 		var ts []int
-		for _, token := range common.Analyze(doc.Text) {
+		for _, token := range util.Analyze(doc.Text) {
 			//tfidf doc's token id list
 			if _, ok := TokenCorpus[token]; !ok {
 				TokenCorpus[token] = tokenID
@@ -88,10 +85,7 @@ func (idx HashIndex) Retrieval(must []string, should []string, not []string, k i
 			if result == nil {
 				result = plr
 			} else {
-				l := len(result)
-				result = append(result, plr...)
-				size := set.Inter(result, l)
-				result = result[:size]
+				result.Inter(plr)
 			}
 		} else {
 			// Token doesn't exist.
@@ -102,13 +96,11 @@ func (idx HashIndex) Retrieval(must []string, should []string, not []string, k i
 	for _, term := range should {
 		if pl, ok := idx[term]; ok {
 			plr := pl[:IfElseInt(len(pl) > r, r, len(pl))]
+			sort.Sort(plr)
 			if result == nil {
 				result = plr //胜者表，截断r
 			} else {
-				l := len(result)
-				result = append(result, plr...)
-				size := set.Union(result, l)
-				result = result[:size]
+				result.Union(plr)
 			}
 		} else {
 			// Token doesn't exist.
@@ -119,15 +111,7 @@ func (idx HashIndex) Retrieval(must []string, should []string, not []string, k i
 	for _, term := range not {
 		if pl, ok := idx[term]; ok {
 			sort.Sort(pl)
-
-			l := len(result)
-			tmp := append(result, pl...)
-			size := set.Inter(tmp, l)
-			inter := tmp[:size]
-
-			result = append(result, inter...)
-			size = set.Diff(result, l)
-			result = result[:size]
+			result.Filter(pl)
 		} else {
 			// Token doesn't exist.
 			continue

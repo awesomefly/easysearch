@@ -4,7 +4,7 @@ import sys
 from gensim.corpora import WikiCorpus
 import opencc
 
-dir_path = "/Users/bytedance/go/src/github.com/simplefts/data/"
+dir_path = "/data/"
 
 
 def read_sample():
