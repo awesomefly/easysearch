@@ -16,10 +16,10 @@ func GetIDs(docs []Doc) []int {
 	return ids
 }
 func TestBTreeIndex(t *testing.T) {
-	//os.Remove("/Users/bytedance/go/src/github.com/simplefts/data/btree_idx_test.idx")
-	//os.Remove("/Users/bytedance/go/src/github.com/simplefts/data/btree_idx_test.kv")
+	//os.Remove("~/go/src/github.com/simplefts/data/btree_idx_test.idx")
+	//os.Remove("~/go/src/github.com/simplefts/data/btree_idx_test.kv")
 
-	idx := NewBTreeIndex("/Users/bytedance/go/src/github.com/simplefts/data/btree_idx_test")
+	idx := NewBTreeIndex("~/go/src/github.com/simplefts/data/btree_idx_test")
 	fmt.Printf("Count:%d\n", idx.BT.Count())
 	ch := idx.BT.FullSet()
 	for {

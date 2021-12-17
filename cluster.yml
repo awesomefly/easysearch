@@ -1,0 +1,29 @@
+ManageServer:
+  Host: 127.0.0.1
+  Port: 1234
+SearchServer:
+  - Host: 127.0.0.1
+    Port: 1235
+  - Host: 127.0.0.1
+    Port: 1236
+DataServer:
+  - Host: 127.0.0.1
+    Port: 1240
+  - Host: 127.0.0.1
+    Port: 1241
+  - Host: 127.0.0.1
+    Port: 1242
+  - Host: 127.0.0.1
+    Port: 1243
+  - Host: 127.0.0.1
+    Port: 1244
+  - Host: 127.0.0.1
+    Port: 1245
+  - Host: 127.0.0.1
+    Port: 1246
+  - Host: 127.0.0.1
+    Port: 1247
+  - Host: 127.0.0.1
+    Port: 1248
+  - Host: 127.0.0.1
+    Port: 1249

@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"encoding/xml"
 	"os"
+	"path/filepath"
 )
 
 // Document represents a Wikipedia abstract dump document.
@@ -17,7 +18,11 @@ type Document struct {
 // LoadDocuments loads a Wikipedia abstract dump and returns a slice of documents.
 // Dump example from https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-abstract1.xml.gz
 func LoadDocuments(path string) ([]Document, error) {
-	f, err := os.Open(path)
+	abspath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(abspath)
 	if err != nil {
 		return nil, err
 	}

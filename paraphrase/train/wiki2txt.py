@@ -20,7 +20,7 @@ def read_sample():
 # train corpus source  https://dumps.wikimedia.org/enwiki/latest/
 # xml to txt
 def wiki_to_txt():
-    corpus_path = "/Users/bytedance/Downloads/enwiki-latest-pages-articles11.xml-p6899367p7054859.bz2"
+    corpus_path = "~/Downloads/enwiki-latest-pages-articles11.xml-p6899367p7054859.bz2"
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
     output = open(dir_path + "wiki_texts.txt", 'w')

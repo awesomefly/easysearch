@@ -1,0 +1,15 @@
+Storage:
+  IndexFile: /Users/bytedance/go/src/github.com/simplefts/data/wiki_index
+  DumpFile: /Users/bytedance/go/src/github.com/simplefts/data/enwiki-latest-abstract18.xml.gz
+BM25:
+  K1: 2
+  B: 0.75
+Server:
+  Host:
+  Port:
+Cluster:
+  ShardingNum: 10
+  ReplicateNum: 3
+  ManageServer:
+    Host: 127.0.0.1
+    Port: 1234

@@ -39,8 +39,6 @@ import (
 )
 
 var DefaultConfig = btree.Config{
-	//Idxfile: "/Users/bytedance/go/src/github.com/simplefts/data/test_insread_index.dat",
-	//Kvfile:  "/Users/bytedance/go/src/github.com/simplefts/data/test_insread_kv.dat",
 	IndexConfig: btree.IndexConfig{
 		Sectorsize: 512,
 		Flistsize:  1000 * btree.OFFSET_SIZE,
@@ -64,26 +62,27 @@ type BTreeIndex struct {
 	// Len is the total length of docs
 	Len int
 
-	Options
+	IndexFile string
 }
 
 func NewBTreeIndex(file string) *BTreeIndex {
 	conf := DefaultConfig
 	conf.Idxfile, conf.Kvfile = file+".idx", file+".kv"
 	bt := BTreeIndex{
-		BT: btree.NewBTree(btree.NewStore(conf)), // todo: 索引文件太大，索引压缩、posting list压缩
+		IndexFile: file,
+		BT:        btree.NewBTree(btree.NewStore(conf)), // todo: 索引文件太大，索引压缩、posting list压缩
 	}
 
-	bt.Options.StoreFile = file + ".sum"
 	bt.Load()
 	return &bt
 }
 
 func (bt *BTreeIndex) Save() {
-	os.Create(bt.Options.StoreFile)
+	file := bt.IndexFile + ".sum"
+	os.Create(file)
 
 	// Index store
-	fd, err := os.OpenFile(bt.Options.StoreFile, os.O_RDWR|os.O_CREATE, 0660)
+	fd, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0660)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -105,7 +104,8 @@ func (bt *BTreeIndex) Save() {
 
 func (bt *BTreeIndex) Load() {
 	// Index store
-	fd, err := os.OpenFile(bt.Options.StoreFile, os.O_RDONLY|os.O_CREATE, 0660)
+	file := bt.IndexFile + ".sum"
+	fd, err := os.OpenFile(file, os.O_RDONLY|os.O_CREATE, 0660)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -171,6 +171,8 @@ func (bt *BTreeIndex) Add(docs []Document) {
 	for _, doc := range docs {
 		tokens := util.Analyze(doc.Text)
 		for _, token := range tokens {
+			//log.Printf("token:%s", token)
+
 			key := &btree.TestKey{K: token}
 			postingList := bt.Lookup(token, true)
 			if postingList != nil {

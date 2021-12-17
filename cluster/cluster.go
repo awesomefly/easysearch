@@ -5,32 +5,75 @@ import (
 	"math/rand"
 )
 
+const (
+	ManagerNode = 1
+	DataNode    = 2
+	SearchNode  = 3
+)
+
 type Node struct {
 	ID   int
-	IP   string
-	Port int
+	Type int
+	Host string //ip:port
+
+	LeaderSharding   []int //主分片
+	FollowerSharding []int //备份分片
 }
 
 type Cluster struct {
-	Shard     int //分片数
-	Replicate int //数据备份数
+	ShardingNum  int //分片数
+	ReplicateNum int //数据备份数
 
-	Leaders   []Node
-	Followers [][]Node
+	SearchNodeCorpus []Node
+	DataNodeCorpus   map[string]Node
+}
+
+func NewCluster(shard, replicate int) *Cluster {
+	return &Cluster{
+		ShardingNum:      shard,
+		ReplicateNum:     replicate,
+		SearchNodeCorpus: make([]Node, 0),
+		DataNodeCorpus:   make(map[string]Node, 0),
+	}
+}
+
+func (c *Cluster) Add(node Node) error {
+	switch node.Type {
+	case DataNode:
+		c.DataNodeCorpus[node.Host] = node
+	case SearchNode:
+		c.SearchNodeCorpus = append(c.SearchNodeCorpus, node)
+	default:
+		return errors.New("invalid node type")
+	}
+	return nil
 }
 
 const (
-	O_RD_ONLY int = 0
-	O_WR_ONLY int = 1
+	LeaderSharding   = 1
+	FollowerSharding = 2
 )
 
-func (c Cluster) Router(id int, flag int) (interface{}, error) {
-	switch flag {
-	case O_RD_ONLY:
-		followers := c.Followers[id%c.Shard] //todo: 可升级为一致性哈希
-		return followers[rand.Int()%len(followers)], nil
-	case O_WR_ONLY:
-		return c.Leaders[id%c.Shard], nil
+type Sharding2Node map[int][]Node
+
+func (c *Cluster) RouteShardingNode(flag int) (Sharding2Node, error) {
+	result := make(Sharding2Node, 0)
+	for _, node := range c.DataNodeCorpus {
+		switch flag {
+		case LeaderSharding:
+			for _, shard := range node.LeaderSharding {
+				result[shard] = append(result[shard], node)
+			}
+		case FollowerSharding:
+			for _, shard := range node.FollowerSharding {
+				result[shard] = append(result[shard], node)
+			}
+		}
 	}
-	return nil, errors.New("binary.Write: invalid type ")
+	return result, nil
+}
+
+func (c *Cluster) RouteSearchNode() Node {
+	n := rand.Intn(len(c.SearchNodeCorpus))
+	return c.SearchNodeCorpus[n]
 }
