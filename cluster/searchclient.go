@@ -4,10 +4,10 @@ import (
 	"log"
 	"net/rpc"
 
-	"github.com/awesomefly/simplefts/util"
+	"github.com/awesomefly/easysearch/util"
 
-	"github.com/awesomefly/simplefts/config"
-	"github.com/awesomefly/simplefts/index"
+	"github.com/awesomefly/easysearch/config"
+	"github.com/awesomefly/easysearch/index"
 )
 
 //RpcCall RPC方法必须满足Go语言的RPC规则：方法只能有两个可序列化的参数，其中第二个参数是指针类型，并且返回一个error类型，同时必须是公开的方法
@@ -47,7 +47,7 @@ func NewSearchClient(config *config.Server) *SearchClient {
 		cluster:      &Cluster{},
 	}
 
-	err := RpcCall(client.ServerConfig.Address(), "ManagerServer.GetCluster", util.GetLocalIP(), &client.cluster)
+	err := RpcCall(client.ServerConfig.Address(), "ManagerServer.GetCluster", util.GetLocalIP(), client.cluster)
 	if err != nil {
 		panic(err)
 	}

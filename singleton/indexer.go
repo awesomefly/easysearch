@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/awesomefly/simplefts/config"
+	"github.com/awesomefly/easysearch/config"
 
-	"github.com/awesomefly/simplefts/index"
+	"github.com/awesomefly/easysearch/index"
 )
 
 func Index(c config.Config) {

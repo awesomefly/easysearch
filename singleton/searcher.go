@@ -8,15 +8,15 @@ import (
 
 	btree "github.com/awesomefly/gobtree"
 
-	"github.com/awesomefly/simplefts/index"
-	"github.com/awesomefly/simplefts/paraphrase/word2vec"
-	"github.com/awesomefly/simplefts/util"
+	"github.com/awesomefly/easysearch/index"
+	"github.com/awesomefly/easysearch/paraphrase/serving"
+	"github.com/awesomefly/easysearch/util"
 )
 
 const (
-	SMALL_SEGMENT  = 1
-	MIDDLE_SEGMENT = 2
-	BIG_SEGMENT    = 3
+	SmallSegment  = 1
+	MiddleSegment = 2
+	BigSegment    = 3
 )
 
 type IncrementalIndex struct {
@@ -37,19 +37,8 @@ type Searcher struct {
 	DoubleBuffer       []*IncrementalIndex //DoubleBuffer索引，增量索引
 
 	DeleteList []index.Doc //delete docs list.  update doc = delete old doc and create new one
-}
 
-func paraphrase(texts []string, n int) []string {
-	path := "/Users/bytedance/go/src/github.com/simplefts/data/model.word2vec.format.bin"
-	model := word2vec.Load(path)
-
-	var (
-		positive = texts
-		negative []string
-	)
-	l := len(texts)
-	sim := word2vec.GetSimilar(model, positive, negative, l+n)
-	return sim[l:]
+	Model *serving.Model //todo: 移到search server更合适
 }
 
 func NewSearcher(file string) *Searcher {
@@ -67,10 +56,28 @@ func NewSearcher(file string) *Searcher {
 		DoubleBuffer:       doubleBuffer,
 		DeleteList:         make([]index.Doc, 0),
 		writeIdxChangeLock: make(chan bool, 1),
+		Model:              nil,
 	}
 	atomic.StoreUint32(&srh.writeIdx, 0)
 	srh.createWriterWorker()
 	return srh
+}
+
+func (srh *Searcher) InitParaphrase(file string) {
+	srh.Model = serving.NewModel(file)
+}
+
+func (srh *Searcher) paraphrase(texts []string, n int) []string {
+	if srh.Model == nil {
+		return nil
+	}
+	var (
+		positive = texts
+		negative []string
+	)
+	l := len(texts)
+	sim := srh.Model.GetSimilar(positive, negative, l+n)
+	return sim[l:]
 }
 
 func (srh *Searcher) createWriterWorker() {
@@ -189,12 +196,12 @@ func (srh *Searcher) Swap(file string, flag int) {
 	//todo: 原子操作
 	var old *index.BTreeIndex
 	switch flag {
-	case SMALL_SEGMENT:
+	case SmallSegment:
 		old = srh.Segment
 		srh.Segment = newIndex
-	case MIDDLE_SEGMENT:
+	case MiddleSegment:
 
-	case BIG_SEGMENT:
+	case BigSegment:
 		old = srh.Segment
 		srh.Segment = newIndex
 	}
@@ -205,8 +212,8 @@ func (srh *Searcher) Swap(file string, flag int) {
 // todo: 检索召回（bm25） -> 粗排sort(CTR by LR) -> 精排sort(CVR by DNN) -> topN(堆排序)
 func (srh *Searcher) Search(text string) []index.Doc {
 	// todo: 支持向量检索
-	must := util.Analyze(text)    // 分词
-	should := paraphrase(must, 3) // 语义改写，即近义词扩展
+	must := util.Analyze(text)        // 分词
+	should := srh.paraphrase(must, 3) // 语义改写，即近义词扩展
 	r := srh.Segment.Retrieval(must, should, nil, 10, 1000)
 
 	cur := atomic.LoadUint32(&srh.writeIdx)

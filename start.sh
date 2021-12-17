@@ -2,7 +2,6 @@
 CURDIR=$(cd $(dirname $0); pwd)
 echo "$CURDIR"
 
-echo "$1"
 if [ $1 = "standalone" ]; then
   ps -ef|grep simplefts|grep -v "grep"|awk -F " " '{print $2}'|xargs kill -9
   sleep 1

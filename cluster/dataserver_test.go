@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awesomefly/simplefts/config"
-	"github.com/awesomefly/simplefts/index"
+	"github.com/awesomefly/easysearch/config"
+	"github.com/awesomefly/easysearch/index"
 	"github.com/stretchr/testify/assert"
 )
 

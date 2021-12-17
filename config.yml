@@ -1,6 +1,6 @@
 Storage:
-  IndexFile: /Users/bytedance/go/src/github.com/simplefts/data/wiki_index
-  DumpFile: /Users/bytedance/go/src/github.com/simplefts/data/enwiki-latest-abstract18.xml.gz
+  IndexFile: ./data/wiki_index
+  DumpFile: ./data/enwiki-latest-abstract18.xml.gz
 BM25:
   K1: 2
   B: 0.75

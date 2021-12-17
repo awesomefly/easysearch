@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awesomefly/simplefts/index"
+	"github.com/awesomefly/easysearch/index"
 )
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -26,7 +26,7 @@ func get(srh *Searcher, text string) []int {
 	return srh.DoubleBuffer[1-curIdx].Index[text].IDs()
 }
 
-var searcher = NewSearcher("./data/test_insread") //必须为全局变量
+var searcher = NewSearcher("../data/test_insread") //必须为全局变量
 func BenchmarkDoubleBuffer(b *testing.B) {
 	//b.N = 10000
 	rand.Seed(time.Now().UnixNano())

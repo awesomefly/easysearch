@@ -1,4 +1,4 @@
-module github.com/awesomefly/simplefts
+module github.com/awesomefly/easysearch
 
 go 1.14
 
@@ -6,7 +6,6 @@ require (
 	code.sajari.com/word2vec v1.0.0
 	github.com/awesomefly/gobtree v0.0.0-20211124121510-98e0a053960b
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docker/docker v20.10.12+incompatible
 	github.com/go-nlp/bm25 v1.0.0
 	github.com/go-nlp/tfidf v1.1.0
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -23,5 +22,4 @@ require (
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	gotest.tools/v3 v3.0.3 // indirect
 )

@@ -1,20 +1,24 @@
-package word2vec
+package serving
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetSimilar(t *testing.T) {
-	path := "~/go/src/github.com/simplefts/data/model.word2vec.format.bin"
-	model := Load(path)
+	path := "../../data/model.word2vec.format.bin"
+	x, _ := filepath.Abs(path)
+	fmt.Println(x)
+	model := NewModel(path)
 
 	var (
 		positive = []string{"king", "woman"}
 		negative = []string{"man"}
 	)
-	out := GetSimilar(model, positive, negative, 3)
+	out := model.GetSimilar(positive, negative, 3)
 	for _, v := range out {
 		println(v)
 	}

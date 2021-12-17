@@ -14,7 +14,7 @@ def train():
 
     corpus_path = corpus_dir + 'wiki_texts.txt'
     model_path = project_dir + 'med200_less.model.bin'
-    model_word2vec_format_path = project_dir + 'model.word2vec.format.bin'
+    model_word2vec_format_path = project_dir + 'model.serving.format.bin'
 
     sentences = word2vec.LineSentence(corpus_path)
     model = word2vec.Word2Vec(sentences, vector_size=200)
@@ -28,9 +28,9 @@ def train():
 
 def similar_test(positive=None, negative=None):
     model_path = project_dir + 'med200_less.model.bin'
-    model_word2vec_format_path = project_dir + 'model.word2vec.format.bin'
+    model_word2vec_format_path = project_dir + 'model.serving.format.bin'
 
-    # model = word2vec.Word2Vec.load(model_path)
+    # model = serving.Word2Vec.load(model_path)
     model = KeyedVectors.load_word2vec_format(model_word2vec_format_path, binary=True)
 
     try:

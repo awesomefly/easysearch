@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/awesomefly/simplefts/config"
+	"github.com/awesomefly/easysearch/config"
 
-	"github.com/awesomefly/simplefts/index"
-	"github.com/awesomefly/simplefts/singleton"
+	"github.com/awesomefly/easysearch/index"
+	"github.com/awesomefly/easysearch/singleton"
 )
 
 type DataServer struct {

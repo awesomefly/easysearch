@@ -34,8 +34,8 @@ import (
 	"strconv"
 	"unsafe"
 
+	"github.com/awesomefly/easysearch/util"
 	btree "github.com/awesomefly/gobtree"
-	"github.com/awesomefly/simplefts/util"
 )
 
 var DefaultConfig = btree.Config{

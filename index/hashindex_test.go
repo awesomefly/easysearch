@@ -3,7 +3,7 @@ package index
 import (
 	"testing"
 
-	"github.com/awesomefly/simplefts/util"
+	"github.com/awesomefly/easysearch/util"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -3,9 +3,9 @@ package index
 import (
 	"sort"
 
-	"github.com/awesomefly/simplefts/score"
+	"github.com/awesomefly/easysearch/score"
 
-	"github.com/awesomefly/simplefts/util"
+	"github.com/awesomefly/easysearch/util"
 )
 
 // HashIndex is an inverted index. It maps tokens to document IDs.

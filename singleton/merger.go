@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/awesomefly/easysearch/index"
 	btree "github.com/awesomefly/gobtree"
-	"github.com/awesomefly/simplefts/index"
 )
 
 func Merge(srcPath, dstPath string) {

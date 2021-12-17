@@ -1,4 +1,4 @@
-package word2vec
+package serving
 
 // https://pkg.go.dev/code.sajari.com/word2vec#section-readme
 //https://github.com/sajari/word2vec
@@ -9,7 +9,19 @@ import (
 	"code.sajari.com/word2vec"
 )
 
-func Load(path string) *word2vec.Model {
+type Model struct {
+	path string
+	mode *word2vec.Model
+}
+
+func NewModel(path string) *Model {
+	return &Model{
+		path: path,
+		mode: load(path),
+	}
+}
+
+func load(path string) *word2vec.Model {
 	// Load the model from an io.Reader (i.e. a file).
 	file, err := os.Open(path)
 	defer file.Close()
@@ -29,7 +41,7 @@ func Load(path string) *word2vec.Model {
 }
 
 //GetSimilar 语义改写、近义词
-func GetSimilar(model *word2vec.Model, positive []string, negative []string, n int) []string {
+func (m *Model) GetSimilar(positive []string, negative []string, n int) []string {
 	// Create an expression.
 	expr := word2vec.Expr{}
 	for _, text := range positive {
@@ -40,7 +52,7 @@ func GetSimilar(model *word2vec.Model, positive []string, negative []string, n i
 	}
 
 	// Find the most similar result by cosine similarity.
-	matches, err := model.CosN(expr, n)
+	matches, err := m.mode.CosN(expr, n)
 	if err != nil {
 		log.Fatalf("error evaluating cosine similarity: %v", err)
 	}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/awesomefly/simplefts/config"
+	"github.com/awesomefly/easysearch/config"
 	"github.com/stretchr/testify/assert"
 )
 

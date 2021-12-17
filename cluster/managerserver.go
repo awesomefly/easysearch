@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/awesomefly/simplefts/util"
+	"github.com/awesomefly/easysearch/util"
 
 	"github.com/serialx/hashring"
 
-	"github.com/awesomefly/simplefts/config"
+	"github.com/awesomefly/easysearch/config"
 )
 
 type ManagerServer struct {
