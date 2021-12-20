@@ -81,14 +81,171 @@
 ### 分布式
 
 ### Architecture
+![](EasySearch.jpg) 
+- MangerServer 服务信息与元数据管理节点
+- DataServer 索引数据存储节点， 每个节点上有多个分片索引数据
+- SearchServer 只负责处理查询请求
+
 
 #### 构建分片索引
+- 修改配置
+  ```
+  cd $PROJECT_DIR
+  vim config.yml
+  ```
+- 新增分片配置如下：
+  ``` 
+  Storage:
+    IndexFile: ./data/wiki_index   #索引文件存储路径
+    DumpFile: ./data/enwiki-latest-abstract1.xml.gz  #文档路径
+  BM25:
+    K1: 2
+    B: 0.75 
+  Cluster:
+    ShardingNum: 10
 
+  ```
+- 创建索引分片
+  ```
+  cd $PROJECT_DIR
+  ./easysearch -m indexer --sharding=true
+
+  ```
+#### 创建集群
+
+###### 创建单机standalone集群
+
+  - 创建集群配置文件（cluster.yml只用与创建Standalone集群）
+  ```
+  cd $PROJECT_DIR
+  vim cluster.yml
+  ```
+  - 配置（创建1个管理节点，10个数据节点，2个查询节点）
+  ```
+  ManageServer:
+    Host: 127.0.0.1
+    Port: 1234
+  SearchServer:
+    - Host: 127.0.0.1
+      Port: 1235
+    - Host: 127.0.0.1
+      Port: 1236
+  DataServer:
+    - Host: 127.0.0.1
+      Port: 1240
+    - Host: 127.0.0.1
+      Port: 1241
+    - Host: 127.0.0.1
+      Port: 1242
+    - Host: 127.0.0.1
+      Port: 1243
+    - Host: 127.0.0.1
+      Port: 1244
+    - Host: 127.0.0.1
+      Port: 1245
+    - Host: 127.0.0.1
+      Port: 1246
+    - Host: 127.0.0.1
+      Port: 1247
+    - Host: 127.0.0.1
+      Port: 1248
+    - Host: 127.0.0.1
+      Port: 1249
+  ```
+  - 修改config.yml配置如下
+  ``` 
+  Storage:
+    IndexFile: ./data/wiki_index   #索引文件存储路径
+    DumpFile: ./data/enwiki-latest-abstract1.xml.gz  #文档路径
+  BM25:
+    K1: 2
+    B: 0.75
+  Cluster:
+    ShardingNum: 10
+    ManageServer:  #ip port保持与集群配置一致
+      Host: 127.0.0.1
+      Port: 1234
+  ```
+  - 集群启动
+  ```
+  bash start.sh standalone
+  ```
+###### 创建分布式集群
+  - 自行创建集群需要准备好机器实例，分别在不同机器节点上启动不同服务
+  - 启动顺序 ManagerServer->DataServer->SearchServer
+  - 启动ManagerServer
+    - 配置如下
+    ``` 
+    Server: # ManagerServer host和ip
+      Host: 127.0.0.1
+      Port: 1234
+    Cluster:
+      ShardingNum: 10
+      ReplicateNum: 3
+    ```
+    - 启动
+    ```
+    ./easysearch -m cluster --servername=managerserver
+    ```
+    
+  - 启动DataServer
+    - 配置
+    ```
+    Storage:
+      IndexFile: ./data/wiki_index   #索引文件存储路径
+      DumpFile: ./data/enwiki-latest-abstract1.xml.gz  #文档路径
+    BM25:
+      K1: 2
+      B: 0.75
+    Server: # DataServer host和ip
+      Host: 127.0.0.1
+      Port: 1240   
+    Cluster:
+      ShardingNum: 10
+      ReplicateNum: 3
+      ManageServer:  #ManagerServer ip port保持与集群配置一致
+        Host: 127.0.0.1
+        Port: 1234
+    ```
+    - 启动
+    ```
+    ./easysearch -m cluster --servername=dataserver
+    ```
+    - 启动SearchServer
+      - 配置
+      ```
+      Server: # SearchServer host和ip
+        Host: 127.0.0.1
+        Port: 1235 
+      Cluster:
+        ShardingNum: 10
+        ReplicateNum: 3
+        ManageServer:  #ManagerServer ip port保持与集群配置一致
+          Host: 127.0.0.1
+          Port: 1234
+      ```
+      - 启动
+      ```
+      ./easysearch -m cluster --servername=searchserver
+      ```      
 #### 分布式检索
+    
+- 结果查询
+  ```
+  ./easysearch -m searcher -q "Album Jordan" --source=remote
+  ```
+- OUPUT:
+    ```
+    2021/12/20 19:45:03 Starting remote search..
+    2021/12/20 19:45:04 Search found 5 documents in 611.645503ms
+    2021/12/20 19:45:04 10  The Great Session is an album led by pianist Duke Jordan recorded in 1978 and released on the Danish SteepleChase label in 1981.Duke Jordan discography, accessed March 24, 2015SteepleChase Records discography, accessed March 24, 2015
+    2021/12/20 19:45:04 605 Thinking of You is an album led by pianist Duke Jordan recorded in 1979 in Denmark (with one track from 1978) and released on the Danish SteepleChase label in 1982.Duke Jordan discography, accessed March 24, 2015SteepleChase Records discography, accessed March 24, 2015
+    2021/12/20 19:45:04 613 Change a Pace is an album led by pianist Duke Jordan recorded in 1979 in Denmark and released on the Danish SteepleChase label in 1980.Duke Jordan discography, accessed March 24, 2015SteepleChase Records discography, accessed March 24, 2015
+    2021/12/20 19:45:04 597 Flight to Japan is an album led by the pianist Duke Jordan, recorded in 1976 in Tokyo and released on the Danish SteepleChase label in 1978.Duke Jordan discography, accessed March 24, 2015- SteepleChase Records discography, accessed March 24, 2015
+    2021/12/20 19:45:04 564 Suburbs is an album by the American New wave band The Suburbs, released in 1986. It was their first and only release on A&M Records.
+  
+    ```
 
-- standalone模式
-
-- 集群模式
 
 ## TODO
 - PostingList压缩与归并效率优化

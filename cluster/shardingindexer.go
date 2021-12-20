@@ -12,7 +12,7 @@ import (
 )
 
 func Index(conf *config.Config) {
-	log.Println("Starting index...")
+	log.Println("Starting sharding index...")
 
 	start := time.Now()
 	docs, err := index.LoadDocuments(conf.Store.DumpFile)

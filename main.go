@@ -120,7 +120,6 @@ func main() {
 			singleton.Index(*conf) //todo: 构建索引耗时过长，性能分析下具体耗时原因
 		}
 	} else if module == "searcher" {
-		log.Println("Starting local simple fts..")
 		docs, err := index.LoadDocuments(conf.Store.DumpFile)
 		if err != nil {
 			log.Fatal(err)
@@ -130,10 +129,12 @@ func main() {
 		start := time.Now()
 		var matched []index.Doc
 		if source == "local" {
+			log.Println("Starting local search..")
 			searcher := singleton.NewSearcher(conf.Store.IndexFile)
 			log.Printf("index loaded %d keys in %v", searcher.Segment.BT.Count(), time.Since(start))
 			matched = searcher.Search(query)
 		} else if source == "remote" {
+			log.Println("Starting remote search..")
 			cli := cluster.NewSearchClient(&conf.Cluster.ManageServer)
 			matched, err = cli.Search(query)
 			if err != nil {
