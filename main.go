@@ -88,9 +88,10 @@ func main() {
 	flag.StringVar(&module, "m", "", "[indexer|searcher|merger|cluster]")
 
 	//searcher
-	var query, source string
+	var query, source, modelFile string
 	flag.StringVar(&query, "q", "Album Jordan", "search query")
 	flag.StringVar(&source, "source", "", "[local|remote]")
+	flag.StringVar(&modelFile, "model_file", "", "paraphrase model file")
 
 	//indexer
 	var sharding bool
@@ -131,6 +132,9 @@ func main() {
 		if source == "local" {
 			log.Println("Starting local search..")
 			searcher := singleton.NewSearcher(conf.Store.IndexFile)
+			if modelFile != "" {
+				searcher.InitParaphrase(modelFile)
+			}
 			log.Printf("index loaded %d keys in %v", searcher.Segment.BT.Count(), time.Since(start))
 			matched = searcher.Search(query)
 		} else if source == "remote" {

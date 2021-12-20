@@ -16,6 +16,7 @@ type BM25Parameters struct {
 type Storage struct {
 	DumpFile  string `yaml:"DumpFile"`
 	IndexFile string `yaml:"IndexFile"`
+	ModelFile string `yaml:"ModelFile"`
 }
 
 type Cluster struct {
@@ -68,6 +69,6 @@ func InitConfig(path string) *Config {
 	if err = yaml.Unmarshal(buffer, &config); err != nil {
 		panic(err.Error())
 	}
-	//fmt.Printf("config: %+v\n", config)
+	fmt.Printf("config: %+v\n", config)
 	return &config
 }

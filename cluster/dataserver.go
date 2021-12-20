@@ -50,11 +50,17 @@ func NewDataServer(config *config.Config) *DataServer {
 
 	for _, shard := range ds.self.LeaderSharding {
 		searcher := singleton.NewSearcher(fmt.Sprintf("%s.%d", config.Store.IndexFile, shard))
+		if config.Store.ModelFile != "" {
+			searcher.InitParaphrase(config.Store.ModelFile)
+		}
 		ds.sharding[shard] = searcher
 	}
 
 	for _, shard := range ds.self.FollowerSharding {
 		searcher := singleton.NewSearcher(fmt.Sprintf("%s.%d", config.Store.IndexFile, shard))
+		if config.Store.ModelFile != "" {
+			searcher.InitParaphrase(config.Store.ModelFile)
+		}
 		ds.sharding[shard] = searcher
 	}
 	return &ds

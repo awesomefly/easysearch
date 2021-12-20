@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetSimilar(t *testing.T) {
-	path := "../../data/model.word2vec.format.bin"
+	path := "../../data/word2vec.format.bin"
 	x, _ := filepath.Abs(path)
 	fmt.Println(x)
 	model := NewModel(path)

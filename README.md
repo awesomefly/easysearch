@@ -1,6 +1,7 @@
 # Easy Full-Text Search Engine
 
 # Overview
+EasySearch是一个分布式的全文检索搜索引擎，同时支持内存检索与磁盘检索，并针对性做了性能优化。
 
 ## 新特性
 
@@ -68,19 +69,45 @@
   ./easysearch -m searcher -q "Album Jordan" --source=local
   ```
 
-### 语义改写
-- 下载训练集
-- 预处理
-  - wiki文档预处理，提取词集 wiki2txt.py
-- 模型训练
-  - 采用python gensim.word2vec训练数据，并保存模型与词向量集合  word2vec.py
-- 模型应用
-  - golang使用code.sajari.com/word2vec库 加载训练得到的词向量集合， 通过api获取搜索词的近义词
+### 语义改写 [参考](https://github.com/dwt0317/QueryRewritingService/tree/master/embedding)
+- requirement
+  - python 3.8+
+- 下载训练集 [下载链接](https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2)
+  ```
+  cd $PROJECT_DIR/data
+  wget https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2
+  ```
+- 文本预处理：wiki文档预处理，提取词集到data/wiki_texts.txt
+  ```
+  /usr/bin/python3 paraphrase/train/wiki2txt.py --cmd=parse --file=$WIKI_FILE
+  ```
+- 模型训练: 采用python gensim.word2vec训练数据，并保存模型与词向量集合 
+  ```
+  /usr/bin/python3 paraphrase/train/word2vec.py --cmd=train --corpus_file=./data/wiki_texts.txt 
+  ```
+  训练成功则会生成：
 
+  模型数据文件./data/med200_less.model.bin
+
+  向量数据文件 ./data/word2vec.format.bin
+- 模型应用
+  - golang语言可以使用code.sajari.com/word2vec库来加载训练得到的词向量集合， 通过并通过接口获取搜索词的近义词
+  - 单元测试 paraphrase/serving/model_test.go
+  - 本地搜索时需要增加选项 --model_file
+    ```
+    ./easysearch -m searcher -q "Album Jordan" --source=local --model_file=./data/word2vec.format.bin 
+    ```
+  - 集群搜索 现在配置项
+    ``` 
+    Storage:
+      IndexFile: ./data/wiki_index   #索引文件存储路径
+      DumpFile: ./data/enwiki-latest-abstract1.xml.gz  #文档路径
+      ModelFile: ./data/word2vec.format.bin
+    ```
 
 ### 分布式
 
-### Architecture
+#### Architecture
 ![](EasySearch.jpg) 
 - MangerServer 服务信息与元数据管理节点
 - DataServer 索引数据存储节点， 每个节点上有多个分片索引数据
@@ -116,60 +143,60 @@
 ###### 创建单机standalone集群
 
   - 创建集群配置文件（cluster.yml只用与创建Standalone集群）
-  ```
-  cd $PROJECT_DIR
-  vim cluster.yml
-  ```
+      ```
+      cd $PROJECT_DIR
+      vim cluster.yml
+      ```
   - 配置（创建1个管理节点，10个数据节点，2个查询节点）
-  ```
-  ManageServer:
-    Host: 127.0.0.1
-    Port: 1234
-  SearchServer:
-    - Host: 127.0.0.1
-      Port: 1235
-    - Host: 127.0.0.1
-      Port: 1236
-  DataServer:
-    - Host: 127.0.0.1
-      Port: 1240
-    - Host: 127.0.0.1
-      Port: 1241
-    - Host: 127.0.0.1
-      Port: 1242
-    - Host: 127.0.0.1
-      Port: 1243
-    - Host: 127.0.0.1
-      Port: 1244
-    - Host: 127.0.0.1
-      Port: 1245
-    - Host: 127.0.0.1
-      Port: 1246
-    - Host: 127.0.0.1
-      Port: 1247
-    - Host: 127.0.0.1
-      Port: 1248
-    - Host: 127.0.0.1
-      Port: 1249
-  ```
+      ```
+      ManageServer:
+        Host: 127.0.0.1
+        Port: 1234
+      SearchServer:
+        - Host: 127.0.0.1
+          Port: 1235
+        - Host: 127.0.0.1
+          Port: 1236
+      DataServer:
+        - Host: 127.0.0.1
+          Port: 1240
+        - Host: 127.0.0.1
+          Port: 1241
+        - Host: 127.0.0.1
+          Port: 1242
+        - Host: 127.0.0.1
+          Port: 1243
+        - Host: 127.0.0.1
+          Port: 1244
+        - Host: 127.0.0.1
+          Port: 1245
+        - Host: 127.0.0.1
+          Port: 1246
+        - Host: 127.0.0.1
+          Port: 1247
+        - Host: 127.0.0.1
+          Port: 1248
+        - Host: 127.0.0.1
+          Port: 1249
+      ```
   - 修改config.yml配置如下
-  ``` 
-  Storage:
-    IndexFile: ./data/wiki_index   #索引文件存储路径
-    DumpFile: ./data/enwiki-latest-abstract1.xml.gz  #文档路径
-  BM25:
-    K1: 2
-    B: 0.75
-  Cluster:
-    ShardingNum: 10
-    ManageServer:  #ip port保持与集群配置一致
-      Host: 127.0.0.1
-      Port: 1234
-  ```
+      ``` 
+      Storage:
+        IndexFile: ./data/wiki_index   #索引文件存储路径
+        DumpFile: ./data/enwiki-latest-abstract1.xml.gz  #文档路径
+      BM25:
+        K1: 2
+        B: 0.75
+      Cluster:
+        ShardingNum: 10
+        ManageServer:  #ip port保持与集群配置一致
+          Host: 127.0.0.1
+          Port: 1234
+      ```
   - 集群启动
-  ```
-  bash start.sh standalone
-  ```
+      ```
+      bash start.sh standalone
+      ```
 ###### 创建分布式集群
   - 自行创建集群需要准备好机器实例，分别在不同机器节点上启动不同服务
   - 启动顺序 ManagerServer->DataServer->SearchServer

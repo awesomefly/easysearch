@@ -4,7 +4,7 @@ import sys
 from gensim.corpora import WikiCorpus
 import opencc
 
-dir_path = "/data/"
+dir_path = "data/"
 
 
 def read_sample():
@@ -19,8 +19,11 @@ def read_sample():
 
 # train corpus source  https://dumps.wikimedia.org/enwiki/latest/
 # xml to txt
-def wiki_to_txt():
-    corpus_path = "~/Downloads/enwiki-latest-pages-articles11.xml-p6899367p7054859.bz2"
+def wiki_to_txt(file):
+    if file is None:
+        return
+
+    corpus_path = file #"~/Downloads/enwiki-latest-pages-articles11.xml-p6899367p7054859.bz2"
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
     output = open(dir_path + "wiki_texts.txt", 'w')
@@ -51,7 +54,15 @@ def convert2simple():
         print(str(i) + " finished.")
 
 
+# /usr/bin/python3 paraphrase/train/wiki2txt.py --cmd=parse --file=$WIKI_FILE
 if __name__ == "__main__":
-    # wiki_to_txt()
-    read_sample()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cmd", type=str, required=True)
+    parser.add_argument("--file", type=str, required=False)
+    args = parser.parse_args()
+    if args.cmd == 'parse':
+        wiki_to_txt(args.file)
+    elif args.cmd == 'sample':
+        read_sample()
     # convert2simple()
