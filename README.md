@@ -1,6 +1,8 @@
 # Easy Full-Text Search Engine
 
-## 新特性：
+# Overview
+
+## 新特性
 
 1. 支持基于wiki文档构建倒排索引
 2. 索引结构支持Hashtable与Btree
@@ -15,33 +17,56 @@
 
 
 ## Quick Start
-### 资源下载
+### 下载
 
 - 下载项目代码到你的工作目录：
 
-`git clone https://github.com/awesomefly/easysearch.git`
+  ```
+  git clone https://github.com/awesomefly/easysearch.git
+  ```
 
 - 通过go mod更新依赖:
 
-`go mod tidy`
+  ```
+  cd $PROJECT_DIR
+  go mod tidy
+  ```
 
-- 下载wiki文档到本地路径
+- 项目构建:
+  ```
+  go build
+  ```
 
 ### 本地索引
-- 构建索引文件
-
-- 本地检索
-
-
-### 分布式
-
-- 构建分片索引
-
-##### 分布式检索
-
-- standalone模式
-
-- 集群模式
+- 下载wiki文档到本地路径, 这里我们下载wiki摘要数据，对摘要建立倒排索引。 [下载链接]( https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-abstract1.xml.gz)
+  ```
+  cd $PROJECT_DIR/data
+  wget  https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-abstract1.xml.gz
+  ```
+- 构建索引文件， 在项目路径下创建config.yml文件，加入构建索引配置项
+    ```
+  cd $PROJECT_DIR
+  vim config.yml
+  ```
+  - 配置如下：
+  ``` 
+  Storage:
+    IndexFile: ./data/wiki_index   #索引文件存储路径
+    DumpFile: ./data/enwiki-latest-abstract1.xml.gz  #文档路径
+  BM25:
+    K1: 2
+    B: 0.75 
+  ```
+  - 创建索引
+  ```
+  cd $PROJECT_DIR
+  ./easysearch -m indexer
+  ```
+  如果索引构建成功，$PROJECT_DIR/data目录下会生成 wiki_index.idx,wiki_index.kv,wiki_index.sum 三个文件
+- 本地检索, 通过关键字搜索文档
+  ```
+  ./easysearch -m searcher -q "Album Jordan" --source=local
+  ```
 
 ### 语义改写
 - 下载训练集
@@ -52,6 +77,24 @@
 - 模型应用
   - golang使用code.sajari.com/word2vec库 加载训练得到的词向量集合， 通过api获取搜索词的近义词
 
+
+### 分布式
+
+### Architecture
+
+#### 构建分片索引
+
+#### 分布式检索
+
+- standalone模式
+
+- 集群模式
+
+## TODO
+- PostingList压缩与归并效率优化
+- 字典索引压缩，减少存储空间
+- 精排引入LR、DNN
+- 多路召回引入向量检索
 
 [参考链接](https://artem.krylysov.com/blog/2020/07/28/lets-build-a-full-text-search-engine/.)
 
