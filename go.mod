@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	code.sajari.com/word2vec v1.0.0
-	github.com/awesomefly/gobtree v0.0.0-20211124121510-98e0a053960b
+	github.com/awesomefly/gobtree v0.0.0-20211221104356-310dd71c2899
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-nlp/bm25 v1.0.0
 	github.com/go-nlp/tfidf v1.1.0

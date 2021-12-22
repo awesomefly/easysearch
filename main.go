@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"strings"
-
 	"github.com/awesomefly/easysearch/cluster"
 	"github.com/awesomefly/easysearch/config"
+	"runtime"
+	"runtime/pprof"
+	"strings"
 
 	"log"
 	"os"
@@ -74,15 +75,31 @@ func startStandaloneCluster() error {
 	return nil
 }
 
+func startProfile()  {
+	f, err := os.OpenFile("cpu.pprof", os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	defer f.Close()
+
+	if err = pprof.StartCPUProfile(f); err != nil {
+		log.Fatal(err)
+		return
+	}
+	defer pprof.StopCPUProfile()
+}
+
 func main() {
-	/*f, _ := os.OpenFile("cpu.pprof", os.O_CREATE|os.O_RDWR, 0666)
+	f, _ := os.Create("cpu.pprof")
+	defer f.Close()
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
-	defer f.Close()*/
 
 	log.SetOutput(os.Stdout)
-
-	log.Printf("args:%+v\n", os.Args)
+	//log.Printf("args:%+v\n", os.Args)
+	//runtime.GOMAXPROCS(2)
+	log.Println("GOMAXPROCS:", runtime.GOMAXPROCS(0))
 
 	var module string
 	flag.StringVar(&module, "m", "", "[indexer|searcher|merger|cluster]")

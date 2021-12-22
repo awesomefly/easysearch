@@ -1,7 +1,7 @@
 //
 // btree inverted index's data structure
 //
-// |<-------------btree------------>| <--posting list--> |
+// |<-------------btree------------>| <--posting list-->|
 // |<-intermediate->|<--leaf node-->|
 //				 -     --- ---          --- --- --- ---
 //				| | - |   |   |    -   |   |   |   |   |
@@ -18,7 +18,7 @@
 //		   -     -     --- ---          --- --- --- ---
 //        | | - | | - |   |   |    -   |   |   |   |   |
 //		   -	 -     --- ---          --- --- --- ---
-//| <--in memory--> | <-----------on disk--------------->|
+// |<--in memory--> | <-----------on disk-------------->|
 //
 //
 
@@ -31,7 +31,6 @@ import (
 	"math"
 	"os"
 	"sort"
-	"strconv"
 	"unsafe"
 
 	"github.com/awesomefly/easysearch/util"
@@ -47,7 +46,7 @@ var DefaultConfig = btree.Config{
 	Maxlevel:      4,
 	RebalanceThrs: 30,
 	AppendRatio:   0.7,
-	DrainRate:     200,
+	DrainRate:     100,
 	MaxLeafCache:  0, // intermediate node in memory and leaf node in disk
 	Sync:          false,
 	Nocache:       false,
@@ -190,38 +189,16 @@ func (bt *BTreeIndex) Add(docs []Document) {
 				TF:     1,
 				Score:  CalDocScore(1, 0),
 			}
-			//add to posting list
+			//add to posting list & sort by score
+			//todo: 数组不适合频繁写，考虑其他数据结构优化，先找到
 			postingList = append(postingList, item)
+			sort.Slice(postingList, func(i, j int) bool {
+				return postingList[i].Score > postingList[j].Score
+			})
 			bt.BT.Insert(key, postingList)
 		}
 		bt.DocNum++
 		bt.Len += len(tokens) // todo: adding only unique words
-	}
-	bt.BT.Drain()
-
-	//sort by score
-	ch := bt.BT.FullSet()
-	for {
-		k := <-ch
-		d := <-ch
-		v := <-ch
-		if k == nil || d == nil || v == nil {
-			break
-		}
-
-		var nv PostingList
-		nv.FromBytes(v)
-		sort.Slice(nv, func(i, j int) bool {
-			return nv[i].Score > nv[j].Score
-		})
-
-		id, err := strconv.ParseInt(string(d), 10, 64) //TestKey.Docid()对应
-		if err != nil {
-			panic(err)
-		}
-
-		key := &btree.TestKey{K: string(k), Id: id}
-		bt.BT.Insert(key, nv)
 	}
 	bt.BT.Drain()
 }

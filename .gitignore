@@ -1,4 +1,5 @@
 easysearch
 err.log
+cpu.pprof
 /.idea
 /data

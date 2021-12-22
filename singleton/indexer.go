@@ -26,7 +26,8 @@ func Index(c config.Config) {
 	start = time.Now()
 	idx := index.NewBTreeIndex(c.Store.IndexFile)
 	idx.Add(docs)
-	log.Printf("Indexed %d documents in %v", len(docs), time.Since(start))
+	log.Printf("Indexed %d documents and %d keys in %v", len(docs), idx.BT.Count(), time.Since(start))
 
+	idx.BT.Stats(true)
 	idx.Close()
 }

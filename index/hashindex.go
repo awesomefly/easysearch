@@ -29,7 +29,6 @@ var DocCorpus = make(map[int]score.BM25Document)
 
 // Add adds documents to the index.
 // todo: Support indexing multiple document fields.
-// todo: Support distributed
 func (idx HashIndex) Add(docs []Document) {
 	var tokenID int
 	for _, doc := range docs {

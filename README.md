@@ -97,7 +97,7 @@ EasySearch是一个分布式的全文检索搜索引擎，同时支持内存检�
     ```
     ./easysearch -m searcher -q "Album Jordan" --source=local --model_file=./data/word2vec.format.bin 
     ```
-  - 集群搜索 现在配置项
+  - 集群搜索时新增配置项
     ``` 
     Storage:
       IndexFile: ./data/wiki_index   #索引文件存储路径

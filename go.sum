@@ -5,8 +5,12 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/ajstarks/svgo v0.0.0-20180226025133-644b8db467af/go.mod h1:K08gAheRH3/J6wwsYMMT4xOr94bZjxIelGM0+d/wbFw=
 github.com/apache/arrow/go/arrow v0.0.0-20200909005831-30143fc493df h1:iXnL0pMIR/RDUWl0kCbc0CQ3UyehlyV+t/DYCLJTbFc=
 github.com/apache/arrow/go/arrow v0.0.0-20200909005831-30143fc493df/go.mod h1:QNYViu/X0HXDHw7m3KXzWSVXIbfUvJqBFe6Gj8/pYA0=
-github.com/awesomefly/gobtree v0.0.0-20211124121510-98e0a053960b h1:TtihHU8nCLRmshknT4jyjC+5xoHJlpxvS+dyYSFtQX4=
-github.com/awesomefly/gobtree v0.0.0-20211124121510-98e0a053960b/go.mod h1:lboVzCOn4VFuTbHQP+fUle8L3O0cJptD0fkl0UMUJ90=
+github.com/awesomefly/gobtree v0.0.0-20211130043348-0748731d20a2 h1:EGSwLYk2QuJCoRD6lr+whtYD/mTOTq7d+X5dABIiR50=
+github.com/awesomefly/gobtree v0.0.0-20211130043348-0748731d20a2/go.mod h1:lboVzCOn4VFuTbHQP+fUle8L3O0cJptD0fkl0UMUJ90=
+github.com/awesomefly/gobtree v0.0.0-20211221091127-8ca972b3345e h1:SbGq04AASoRn5upwET0hz/bnwp+/AMCNITS3o8vEkb4=
+github.com/awesomefly/gobtree v0.0.0-20211221091127-8ca972b3345e/go.mod h1:lboVzCOn4VFuTbHQP+fUle8L3O0cJptD0fkl0UMUJ90=
+github.com/awesomefly/gobtree v0.0.0-20211221104356-310dd71c2899 h1:e9zAke/LBokn1J69WLg0KKy1+y9oCCUo1Pr4pYPMsnY=
+github.com/awesomefly/gobtree v0.0.0-20211221104356-310dd71c2899/go.mod h1:lboVzCOn4VFuTbHQP+fUle8L3O0cJptD0fkl0UMUJ90=
 github.com/chewxy/hm v1.0.0 h1:zy/TSv3LV2nD3dwUEQL2VhXeoXbb9QkpmdRAVUFiA6k=
 github.com/chewxy/hm v1.0.0/go.mod h1:qg9YI4q6Fkj/whwHR1D+bOGeF7SniIP40VweVepLjg0=
 github.com/chewxy/math32 v1.0.0/go.mod h1:Miac6hA1ohdDUTagnvJy/q+aNnEk16qWUdb8ZVhvCN0=
