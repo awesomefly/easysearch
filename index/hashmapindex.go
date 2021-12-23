@@ -8,8 +8,8 @@ import (
 	"github.com/awesomefly/easysearch/util"
 )
 
-// HashIndex is an inverted index. It maps tokens to document IDs.
-type HashIndex map[string]PostingList
+// HashMapIndex is an inverted index. It maps tokens to document IDs.
+type HashMapIndex map[string]PostingList
 
 func IfElseInt(condition bool, o1 int, o2 int) int {
 	if condition {
@@ -29,7 +29,7 @@ var DocCorpus = make(map[int]score.BM25Document)
 
 // Add adds documents to the index.
 // todo: Support indexing multiple document fields.
-func (idx HashIndex) Add(docs []Document) {
+func (idx HashMapIndex) Add(docs []Document) {
 	var tokenID int
 	for _, doc := range docs {
 		var ts []int
@@ -74,7 +74,7 @@ func (idx HashIndex) Add(docs []Document) {
 // Retrieval returns top k docs sorted by bm25
 // todo: compress posting list and opt intersection/union rt
 // https://blog.csdn.net/weixin_39890629/article/details/111268898
-func (idx HashIndex) Retrieval(must []string, should []string, not []string, k int, r int) []Doc {
+func (idx HashMapIndex) Retrieval(must []string, should []string, not []string, k int, r int) []Doc {
 	var result PostingList
 	for _, term := range must {
 		if pl, ok := idx[term]; ok {

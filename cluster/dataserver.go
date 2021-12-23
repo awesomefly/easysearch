@@ -109,8 +109,7 @@ func (s *DataServer) Del(doc index.Document) {
 	srh.Del(doc)
 }
 
-//KeepAlive 备份分片与主分片保持心疼，一旦发现主分片宕机，发起选举
-//todo: 是否由ManageServer节点负责
+//KeepAlive todo: 备份分片与主分片保持心跳，一旦发现主分片宕机发起选举 or 请求ManageServer重新分配Leader
 /*
 func (s *DataServer) KeepAlive() {
 	for _, shardId := range s.self.FollowerSharding {

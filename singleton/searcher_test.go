@@ -22,8 +22,8 @@ func randSeq(n int) string {
 }
 
 func get(srh *Searcher, text string) []int {
-	curIdx := atomic.LoadUint32(&srh.writeIdx)
-	return srh.DoubleBuffer[1-curIdx].Index[text].IDs()
+	rt := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
+	return (*rt.ReadIndex())[text].IDs()
 }
 
 var searcher = NewSearcher("../data/test_insread") //必须为全局变量
@@ -56,4 +56,14 @@ func BenchmarkDoubleBufferParallel(b *testing.B) {
 			get(searcher, t)
 		}
 	})
+}
+
+func TestSearcher(t *testing.T) {
+	searcher.Add(index.Document{ID: 1, Text: "A donut on a glass plate. Only the donuts."})
+	for i := 0; i < 2; i++ {
+		searcher.Add(index.Document{ID: 1, Text: randSeq(5)})
+	}
+    time.Sleep(3*time.Second)
+	(*DoubleBuffer)(atomic.LoadPointer(&searcher.RTSegment)).Swap()
+	fmt.Printf("%+v", searcher.Search("donut"))
 }

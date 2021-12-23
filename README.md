@@ -280,6 +280,9 @@ EasySearch是一个分布式的全文检索搜索引擎，同时支持内存检�
 - 精排引入LR、DNN
 - 多路召回引入向量检索
 
-[参考链接](https://artem.krylysov.com/blog/2020/07/28/lets-build-a-full-text-search-engine/.)
+## 参考
+
+- [skip-list vs btree](https://stackoverflow.com/questions/256511/skip-list-vs-binary-search-tree/28270537#28270537)
+- [simple fts](https://artem.krylysov.com/blog/2020/07/28/lets-build-a-full-text-search-engine/.)
 
 

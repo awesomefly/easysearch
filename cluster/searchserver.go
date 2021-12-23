@@ -49,7 +49,7 @@ func (s *SearchServer) Run() {
 }
 
 //SearchAll 分布式搜索
-//todo: 实时更新&删除
+//todo: 实现实时更新&删除接口
 func (s *SearchServer) SearchAll(query string, response *[]index.Doc) error {
 	r, err := s.cluster.RouteShardingNode(FollowerSharding) //todo: cache router info
 	if err != nil {

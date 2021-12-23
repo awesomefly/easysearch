@@ -1,10 +1,13 @@
 package singleton
 
 import (
-	"runtime"
+	"errors"
+	"log"
 	"sort"
 	"strconv"
 	"sync/atomic"
+	"time"
+	"unsafe"
 
 	btree "github.com/awesomefly/gobtree"
 
@@ -19,22 +22,123 @@ const (
 	BigSegment    = 3
 )
 
-type IncrementalIndex struct {
-	Index          index.HashIndex
+type RealtimeIndex struct {
+	Index          index.HashMapIndex
 	IncrementQueue chan index.Document
+}
+
+type DoubleBuffer struct {
+	WriteIdx uint32
+	errChan  chan error
+
+	Indices  []*index.HashMapIndex
+	DocQueue []chan index.Document
+}
+
+func NewDoubleBuffer() *DoubleBuffer {
+	buf := DoubleBuffer{}
+	atomic.StoreUint32(&buf.WriteIdx, 0)
+
+	for i := 0; i < 2; i++ {
+		idx := make(index.HashMapIndex)
+		buf.Indices = append(buf.Indices, &idx)
+		buf.DocQueue = append(buf.DocQueue, make(chan index.Document, 100))
+	}
+
+	buf.errChan = buf.Start()
+	return &buf
+}
+
+func (b *DoubleBuffer) Start() chan error {
+	errChan := make(chan error, 1)
+	go func() {
+		for {
+			select {
+			case err := <-errChan:
+				log.Fatal(err)
+			default:
+				b.DoAdd()
+			}
+		}
+	}()
+	return errChan
+}
+
+func (b *DoubleBuffer) Stop() {
+	b.errChan <- errors.New("clear")
+}
+
+func (b *DoubleBuffer) DoAdd() {
+	writeIdx := atomic.LoadUint32(&b.WriteIdx)
+
+	//单协程写，无需加锁
+	idx := b.Indices[writeIdx]
+	docs := make([]index.Document, 0)
+	for {
+		select {
+		case doc := <-b.DocQueue[writeIdx]:
+			docs = append(docs, doc)
+			continue
+		default:
+			break
+		}
+		break
+	}
+	idx.Add(docs)
+
+	if len(b.DocQueue[1-writeIdx]) > 100 {
+		//fmt.Println("CurrentIdx Change.")
+		b.Swap()
+	}
+}
+
+func (b *DoubleBuffer) Add(doc index.Document) {
+	writeIdx := atomic.LoadUint32(&b.WriteIdx)
+	b.DocQueue[writeIdx] <- doc
+	b.DocQueue[1-writeIdx] <- doc
+}
+
+func (b *DoubleBuffer) Swap() {
+	writeIdx := atomic.LoadUint32(&b.WriteIdx)
+	atomic.StoreUint32(&b.WriteIdx, 1-writeIdx)
+}
+
+func (b *DoubleBuffer) ReadIndex() *index.HashMapIndex {
+	writeIdx := atomic.LoadUint32(&b.WriteIdx)
+	return b.Indices[1-writeIdx]
+}
+
+func (b *DoubleBuffer) Flush() {
+	writeIdx := atomic.LoadUint32(&b.WriteIdx)
+	for {
+		if len(b.DocQueue[writeIdx]) > 0 {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		break
+	}
+
+	if len(b.DocQueue[1-writeIdx]) > 0 {
+		b.Swap()
+		writeIdx = atomic.LoadUint32(&b.WriteIdx)
+		for {
+			if len(b.DocQueue[writeIdx]) > 0 {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+			break
+		}
+	}
 }
 
 type Searcher struct {
 	//磁盘持久化索引，全量索引; 考虑重建成本，可以把全量索引拆成多个小索引
-	BigSegment *index.BTreeIndex //大索引，多个中型索引合并成大索引 eg.月/索引
-	//MiddleSegment *index.BTreeIndex //中型锁，多个小索引合并到一个中型索引  eg.周索引
+	BigSegment    *index.BTreeIndex //大索引，多个中型索引合并成大索引 eg.月/年/全量索引
+	MiddleSegment *index.BTreeIndex //中型锁，多个小索引合并到一个中型索引  eg.周索引
 	//SmallSegment  *index.BTreeIndex //小型索引分片，实时索引合并到这里 eg.天索引
 
-	Segment *index.BTreeIndex // todo: 考虑重建成本，可以把全量索引拆成天/周/月/年多个索引
-
-	writeIdx           uint32
-	writeIdxChangeLock chan bool
-	DoubleBuffer       []*IncrementalIndex //DoubleBuffer索引，增量索引
+	Segment *index.BTreeIndex // 考虑重建成本，可以把全量索引拆成天/周/月/年多个索引, 每天可只重建前一天的天级索引成本小
+	RTSegment unsafe.Pointer // 实时更新索引
 
 	DeleteList []index.Doc //delete docs list.  update doc = delete old doc and create new one
 
@@ -42,24 +146,21 @@ type Searcher struct {
 }
 
 func NewSearcher(file string) *Searcher {
-	doubleBuffer := make([]*IncrementalIndex, 0, 2)
+	doubleBuffer := make([]*RealtimeIndex, 0, 2)
 	for i := 0; i < 2; i++ {
-		idx := IncrementalIndex{
-			Index:          make(index.HashIndex),
+		idx := RealtimeIndex{
+			Index:          make(index.HashMapIndex),
 			IncrementQueue: make(chan index.Document, 1000),
 		}
 		doubleBuffer = append(doubleBuffer, &idx)
 	}
 
 	srh := &Searcher{
-		Segment:            index.NewBTreeIndex(file),
-		DoubleBuffer:       doubleBuffer,
-		DeleteList:         make([]index.Doc, 0),
-		writeIdxChangeLock: make(chan bool, 1),
-		Model:              nil,
+		Segment:    index.NewBTreeIndex(file),
+		RTSegment:  unsafe.Pointer(NewDoubleBuffer()),
+		DeleteList: make([]index.Doc, 0),
+		Model:      nil,
 	}
-	atomic.StoreUint32(&srh.writeIdx, 0)
-	srh.createWriterWorker()
 	return srh
 }
 
@@ -80,43 +181,11 @@ func (srh *Searcher) paraphrase(texts []string, n int) []string {
 	return sim[l:]
 }
 
-func (srh *Searcher) createWriterWorker() {
-	for p := 0; p < 2; p++ {
-		go func() {
-			for {
-				curIdx := atomic.LoadUint32(&srh.writeIdx)
-				if p != int(curIdx) {
-					runtime.Gosched()
-					continue
-				}
-				//单协程写，无需加锁
-				buf := srh.DoubleBuffer[curIdx]
-				doc := <-buf.IncrementQueue
-				buf.Index.Add([]index.Document{doc})
-
-				if len(srh.DoubleBuffer[1-curIdx].IncrementQueue) > 100 {
-					//fmt.Println("CurrentIdx Change.")
-					srh.writeIdxChangeLock <- true
-					srh.changeCurrentIdx()
-					<-srh.writeIdxChangeLock
-				}
-			}
-		}()
-	}
-}
-
-func (srh *Searcher) changeCurrentIdx() {
-	curIdx := atomic.LoadUint32(&srh.writeIdx)
-	atomic.StoreUint32(&srh.writeIdx, 1-curIdx)
-
-}
-
 // Add doc to index double-buffer async
 // write need lock but read do not
 func (srh *Searcher) Add(doc index.Document) {
-	curIdx := atomic.LoadUint32(&srh.writeIdx)
-	srh.DoubleBuffer[curIdx].IncrementQueue <- doc
-	srh.DoubleBuffer[1-curIdx].IncrementQueue <- doc
+	seg := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
+	seg.Add(doc)
 }
 
 // Del doc from index
@@ -126,21 +195,15 @@ func (srh *Searcher) Del(doc index.Document) {
 	sort.Sort((*index.PostingList)(&srh.DeleteList))
 }
 
-// Drain cached index to disk
+// Drain realtime index to disk
 func (srh *Searcher) Drain() {
-	srh.writeIdxChangeLock <- true //持久化过程中不允许double buffer切换
-	writeIdx := atomic.LoadUint32(&srh.writeIdx)
-	if writeIdx != 1 { //double-buffer[0]的数据比较新, 对double-buffer[0]持久化后可直接重置double-buffer
-		srh.changeCurrentIdx()
-	}
+	old := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
+	atomic.StorePointer(&srh.RTSegment, unsafe.Pointer(NewDoubleBuffer()))
 
-	for k, v := range srh.DoubleBuffer[1-writeIdx].Index {
-		docs := make([]index.Document, 0)
-		for _, id := range v.IDs() {
-			docs = append(docs, index.Document{ID: id, Text: k})
-		}
+	old.Flush()
 
-		//合并到主索引需要加锁
+	for k, v := range *old.ReadIndex() {
+		//todo:合并到主索引需要加锁
 		dst := srh.Segment.Lookup(k, true)
 		dst = append(dst, v...)
 		sort.Sort(dst)
@@ -149,12 +212,11 @@ func (srh *Searcher) Drain() {
 		srh.Segment.BT.Insert(key, &dst)
 	}
 	srh.Segment.BT.Drain()
-	srh.DoubleBuffer[writeIdx].Index = make(index.HashIndex) //todo: 可升级为原子操作
-	srh.DoubleBuffer[1-writeIdx].Index = make(index.HashIndex)
-	<-srh.writeIdxChangeLock
+
+	old.Stop()
 }
 
-// Rollover small segment to bigger segment
+// Rollover small segment to middle segment and middle segment to big segment
 func (srh *Searcher) Rollover() {
 	//todo: merge tow segment to a new file, then swap it with big segment
 	ch := srh.Segment.BT.FullSet()
@@ -169,7 +231,7 @@ func (srh *Searcher) Rollover() {
 		var src index.PostingList
 		src.FromBytes(v)
 
-		dst := srh.BigSegment.Lookup(string(k), true)
+		dst := srh.MiddleSegment.Lookup(string(k), true)
 		dst = append(dst, src...)
 		sort.Sort(dst)
 
@@ -179,13 +241,13 @@ func (srh *Searcher) Rollover() {
 		}
 
 		key := &btree.TestKey{K: string(k), Id: id}
-		srh.BigSegment.BT.Insert(key, &dst)
+		srh.MiddleSegment.BT.Insert(key, &dst)
 	}
 
-	srh.BigSegment.DocNum += srh.Segment.DocNum
-	srh.BigSegment.Len += srh.Segment.Len
+	srh.MiddleSegment.DocNum += srh.Segment.DocNum
+	srh.MiddleSegment.Len += srh.Segment.Len
 
-	srh.BigSegment.BT.Drain()
+	srh.MiddleSegment.BT.Drain()
 	srh.Segment.Clear()
 }
 
@@ -200,24 +262,38 @@ func (srh *Searcher) Swap(file string, flag int) {
 		old = srh.Segment
 		srh.Segment = newIndex
 	case MiddleSegment:
-
+		old = srh.MiddleSegment
+		srh.MiddleSegment = newIndex
 	case BigSegment:
-		old = srh.Segment
-		srh.Segment = newIndex
+		old = srh.BigSegment
+		srh.BigSegment = newIndex
 	}
 	old.Clear()
+}
+
+//SearchTips 搜索提示
+//Trie 适合英文词典，如果系统中存在大量字符串且这些字符串基本没有公共前缀，则相应的trie树将非常消耗内存（数据结构之trie树）
+//Double Array Trie 适合做中文词典，内存占用小
+func (srh *Searcher) SearchTips() []string {
+	//todo: 支持trie树 or FST
+	return nil
 }
 
 // Search queries the index for the given text.
 // todo: 检索召回（bm25） -> 粗排sort(CTR by LR) -> 精排sort(CVR by DNN) -> topN(堆排序)
 func (srh *Searcher) Search(text string) []index.Doc {
+	//todo: 支持范围查找&前缀查找
+	//参考：Lucene builds an inverted index using Skip-Lists on disk,
+	//and then loads a mapping for the indexed terms into memory using a Finite State Transducer (FST).
+
 	// todo: 支持向量检索
-	must := util.Analyze(text)        // 分词
-	should := srh.paraphrase(must, 3) // 语义改写，即近义词扩展
+	//1. Query Rewrite todo:支持查询纠错，意图识别
+	must := util.Analyze(text)        //1.1 文本预处理：分词、去除停用词
+	should := srh.paraphrase(must, 3) //1.2 语义扩展，即近义词/含义相同等
 	r := srh.Segment.Retrieval(must, should, nil, 10, 1000)
 
-	cur := atomic.LoadUint32(&srh.writeIdx)
-	i := srh.DoubleBuffer[1-cur].Index.Retrieval(must, should, nil, 10, 1000)
+	seg := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
+	i := seg.ReadIndex().Retrieval(must, should, nil, 10, 1000)
 	d := srh.DeleteList
 
 	//merge

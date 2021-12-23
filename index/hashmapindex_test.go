@@ -9,7 +9,7 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	idx := make(HashIndex)
+	idx := make(HashMapIndex)
 
 	idx.Add([]Document{{ID: 1, Text: "A donut on a glass plate. Only the donuts."}})
 	assert.Nil(t, idx.Retrieval([]string{"a"}, nil, nil, 100, 10))

@@ -53,6 +53,8 @@ var DefaultConfig = btree.Config{
 }
 
 type BTreeIndex struct {
+	//skip-list vs btree:
+	//https://stackoverflow.com/questions/256511/skip-list-vs-binary-search-tree/28270537#28270537
 	BT *btree.BTree
 
 	// DocNum is the count of documents
