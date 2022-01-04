@@ -10,22 +10,26 @@ import (
 	"unsafe"
 
 	btree "github.com/awesomefly/gobtree"
+	"github.com/yourbasic/bloom"
 
 	"github.com/awesomefly/easysearch/index"
 	"github.com/awesomefly/easysearch/paraphrase/serving"
 	"github.com/awesomefly/easysearch/util"
 )
 
+type SegmentType int
 const (
-	SmallSegment  = 1
-	MiddleSegment = 2
-	BigSegment    = 3
+	SmallSegment  SegmentType = iota
+	MiddleSegment
+	BigSegment
 )
 
-type RealtimeIndex struct {
-	Index          index.HashMapIndex
-	IncrementQueue chan index.Document
-}
+type SearchModel int
+const (
+	Boolean  SearchModel = iota
+	VectorSpace
+	BM25
+)
 
 type DoubleBuffer struct {
 	WriteIdx uint32
@@ -40,8 +44,8 @@ func NewDoubleBuffer() *DoubleBuffer {
 	atomic.StoreUint32(&buf.WriteIdx, 0)
 
 	for i := 0; i < 2; i++ {
-		idx := make(index.HashMapIndex)
-		buf.Indices = append(buf.Indices, &idx)
+		idx := index.NewHashMapIndex()
+		buf.Indices = append(buf.Indices, idx)
 		buf.DocQueue = append(buf.DocQueue, make(chan index.Document, 100))
 	}
 
@@ -84,9 +88,12 @@ func (b *DoubleBuffer) DoAdd() {
 		}
 		break
 	}
-	idx.Add(docs)
 
-	if len(b.DocQueue[1-writeIdx]) > 100 {
+	if len(docs) > 0 {
+		idx.Add(docs)
+	}
+
+	if len(b.DocQueue[1-writeIdx]) > 10 {
 		//fmt.Println("CurrentIdx Change.")
 		b.Swap()
 	}
@@ -141,24 +148,17 @@ type Searcher struct {
 	RTSegment unsafe.Pointer // 实时更新索引
 
 	DeleteList []index.Doc //delete docs list.  update doc = delete old doc and create new one
+	BloomFilter  *bloom.Filter
 
 	Model *serving.Model //todo: 移到search server更合适
 }
 
 func NewSearcher(file string) *Searcher {
-	doubleBuffer := make([]*RealtimeIndex, 0, 2)
-	for i := 0; i < 2; i++ {
-		idx := RealtimeIndex{
-			Index:          make(index.HashMapIndex),
-			IncrementQueue: make(chan index.Document, 1000),
-		}
-		doubleBuffer = append(doubleBuffer, &idx)
-	}
-
 	srh := &Searcher{
 		Segment:    index.NewBTreeIndex(file),
 		RTSegment:  unsafe.Pointer(NewDoubleBuffer()),
 		DeleteList: make([]index.Doc, 0),
+		BloomFilter:bloom.New(10000, 1000),
 		Model:      nil,
 	}
 	return srh
@@ -192,7 +192,7 @@ func (srh *Searcher) Add(doc index.Document) {
 func (srh *Searcher) Del(doc index.Document) {
 	//todo: 加锁 or 也放到double buffer
 	srh.DeleteList = append(srh.DeleteList, index.Doc{ID: int32(doc.ID)})
-	sort.Sort((*index.PostingList)(&srh.DeleteList))
+	srh.BloomFilter.Add(strconv.Itoa(doc.ID))
 }
 
 // Drain realtime index to disk
@@ -202,7 +202,7 @@ func (srh *Searcher) Drain() {
 
 	old.Flush()
 
-	for k, v := range *old.ReadIndex() {
+	for k, v := range old.ReadIndex().Map {
 		//todo:合并到主索引需要加锁
 		dst := srh.Segment.Lookup(k, true)
 		dst = append(dst, v...)
@@ -252,7 +252,7 @@ func (srh *Searcher) Rollover() {
 }
 
 // Swap segment index, use for rebuild index
-func (srh *Searcher) Swap(file string, flag int) {
+func (srh *Searcher) Swap(file string, flag SegmentType) {
 	newIndex := index.NewBTreeIndex(file)
 
 	//todo: 原子操作
@@ -271,35 +271,81 @@ func (srh *Searcher) Swap(file string, flag int) {
 	old.Clear()
 }
 
-//SearchTips 搜索提示
+//SearchTips todo: 支持搜索提示
 //Trie 适合英文词典，如果系统中存在大量字符串且这些字符串基本没有公共前缀，则相应的trie树将非常消耗内存（数据结构之trie树）
 //Double Array Trie 适合做中文词典，内存占用小
 func (srh *Searcher) SearchTips() []string {
-	//todo: 支持trie树 or FST
+	//支持trie树 or FST
 	return nil
 }
 
+func (srh *Searcher)Retrieval(terms []string, ext []string, model SearchModel) []index.Doc {
+	var result []index.Doc
+	switch model {
+	case Boolean:
+		result = srh.Segment.BooleanRetrieval(terms, ext, nil, 10, 1000)
+
+		seg := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
+		y := seg.ReadIndex().BooleanRetrieval(terms, ext, nil, 10, 1000)
+
+		//merge
+		result = append(result, y...)
+	case VectorSpace:
+		terms = append(terms, ext...)
+		result = srh.Segment.VecSpaceRetrieval(terms, 10, 1000)
+
+		seg := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
+		y := seg.ReadIndex().VecSpaceRetrieval(terms,10, 1000)
+
+		//merge
+		result = append(result, y...)
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].Cosine > result[j].Cosine //降序
+		})
+	case BM25:
+		terms = append(terms, ext...)
+		result = srh.Segment.ProbRetrieval(terms, 10, 1000)
+
+		seg := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
+		y := seg.ReadIndex().ProbRetrieval(terms,10, 1000)
+
+		//merge
+		result = append(result, y...)
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].BM25 > result[j].BM25 //降序
+		})
+	}
+	return result
+}
+
+//Filter deleted docs
+func (srh *Searcher) Filter(docs []index.Doc) []index.Doc {
+	var result []index.Doc
+	for _, doc := range docs {
+		if !srh.BloomFilter.Test(strconv.Itoa(int(doc.ID))) {
+			result = append(result, doc)
+		}
+	}
+	return result
+}
+
 // Search queries the index for the given text.
-// todo: 检索召回（bm25） -> 粗排sort(CTR by LR) -> 精排sort(CVR by DNN) -> topN(堆排序)
-func (srh *Searcher) Search(text string) []index.Doc {
-	//todo: 支持范围查找&前缀查找
+// todo: 检索召回（多路召回） -> 粗排sort(CTR by LR) -> 精排sort(CVR by DNN) -> topN(堆排序)
+func (srh *Searcher) Search(query string) []index.Doc {
+	//todo: 支持前缀查找
 	//参考：Lucene builds an inverted index using Skip-Lists on disk,
 	//and then loads a mapping for the indexed terms into memory using a Finite State Transducer (FST).
 
-	// todo: 支持向量检索
 	//1. Query Rewrite todo:支持查询纠错，意图识别
-	must := util.Analyze(text)        //1.1 文本预处理：分词、去除停用词
-	should := srh.paraphrase(must, 3) //1.2 语义扩展，即近义词/含义相同等
-	r := srh.Segment.Retrieval(must, should, nil, 10, 1000)
+	//1.1 文本预处理：分词、去除停用词、词干提取
+	terms := util.Analyze(query)
+	//1.2 语义扩展，即近义词/含义相同等
+	ext := srh.paraphrase(terms, 3)
 
-	seg := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
-	i := seg.ReadIndex().Retrieval(must, should, nil, 10, 1000)
-	d := srh.DeleteList
+	//2. todo:多路召回（传统检索+向量检索）
+	r := srh.Retrieval(terms, ext, BM25)
 
-	//merge
-	(*index.PostingList)(&r).Union(i)
-
-	//filter
-	(*index.PostingList)(&r).Filter(d)
+	//3. 过滤已删除文档filter
+	r = srh.Filter(r)
 	return r
 }

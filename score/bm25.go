@@ -1,10 +1,9 @@
 package score
 
 import (
-	"sort"
-
 	"github.com/go-nlp/bm25"
 	"github.com/go-nlp/tfidf"
+	"sort"
 )
 
 type BM25Document []int           //token id list

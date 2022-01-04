@@ -28,7 +28,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"math"
 	"os"
 	"sort"
 	"unsafe"
@@ -205,10 +204,98 @@ func (bt *BTreeIndex) Add(docs []Document) {
 	bt.BT.Drain()
 }
 
-// Retrieval 布尔检索，bm25计算相关性
-func (bt *BTreeIndex) Retrieval(must []string, should []string, not []string, k int, r int) []Doc {
-	table := make(map[KeyWord][]Doc, 0)
+func (bt *BTreeIndex) Get(terms []string, r int) map[Term][]Doc {
+	result := make(map[Term][]Doc, len(terms))
+	for _, term := range terms {
+		if postingList := bt.Lookup(term, false); postingList != nil {
+			l := postingList[:IfElseInt(len(postingList) > r, r, len(postingList))] //胜者表按frequency排序,截断前r个,加速归并
+			result[Term{K: term, DF: int32(len(postingList))}] = l
+		} else {
+			result[Term{K: term}] = nil
+		}
+	}
+	return result
+}
 
+//VecSpaceRetrieval 向量空间检索
+func (bt *BTreeIndex) VecSpaceRetrieval(terms []string, k int, r int) []Doc {
+	tfidf := NewTFIDF()
+
+	//query's term frequency
+	queryDocId := int32(-1)
+	tfidf.DOC[queryDocId] = make(TF, 0)
+
+	var result PostingList
+	for _, term := range terms {
+		tfidf.DOC[queryDocId][term]++
+		if pl := bt.Lookup(term, false); pl != nil {
+			plr := pl[:IfElseInt(len(pl) > r, r, len(pl))]
+			//sort.Sort(plr)  //Union中会先sort在diff
+			if result == nil {
+				result = plr //胜者表，截断r
+			} else {
+				result.Union(plr)
+			}
+
+			tfidf.IDF[term] = CalIDF(bt.DocNum, len(pl))
+			for _, doc := range plr {
+				tf := tfidf.DOC[doc.ID]
+				if tf == nil {
+					tf = make(TF, 0)
+				}
+				tf[term] = doc.TF
+				tfidf.DOC[doc.ID] = tf
+			}
+		} else {
+			// Token doesn't exist.
+			continue
+		}
+	}
+
+	result = CalCosine(result, tfidf)
+	return result
+}
+
+//ProbRetrieval 概率检索模型，常用BM25
+func (bt *BTreeIndex) ProbRetrieval(terms []string, k int, r int) []Doc {
+	tfidf := NewTFIDF()
+
+	var result PostingList
+	for _, term := range terms {
+		if pl := bt.Lookup(term, false); pl != nil {
+			plr := pl[:IfElseInt(len(pl) > r, r, len(pl))]
+			// sort.Sort(plr)  Union中会先sort在diff
+			if result == nil {
+				result = plr //胜者表，截断r
+			} else {
+				result.Union(plr)
+			}
+
+			tfidf.IDF[term] = CalIDF(bt.DocNum, len(pl))
+			for _, doc := range plr {
+				tf := tfidf.DOC[doc.ID]
+				if tf == nil {
+					tf = make(TF, 0)
+				}
+				tf[term] = doc.TF
+				tfidf.DOC[doc.ID] = tf
+			}
+		} else {
+			// Token doesn't exist.
+			continue
+		}
+	}
+
+	//log.Printf("result len:%d\n", len(result))
+	result = CalBM25(result, tfidf, bt.Len, bt.DocNum)
+	if len(result) > k {
+		return result[:k]
+	}
+	return result
+}
+
+// BooleanRetrieval 布尔检索
+func (bt *BTreeIndex) BooleanRetrieval(must []string, should []string, not []string, k int, r int) []Doc {
 	var result PostingList
 	for _, term := range must {
 		if pl := bt.Lookup(term, false); pl != nil {
@@ -219,8 +306,6 @@ func (bt *BTreeIndex) Retrieval(must []string, should []string, not []string, k 
 			} else {
 				result.Inter(plr)
 			}
-			keyword := KeyWord{K: term, DF: int32(len(pl))}
-			table[keyword] = plr
 		} else {
 			// Token doesn't exist.
 			continue
@@ -236,8 +321,6 @@ func (bt *BTreeIndex) Retrieval(must []string, should []string, not []string, k 
 			} else {
 				result.Union(plr)
 			}
-			keyword := KeyWord{K: term, DF: int32(len(pl))}
-			table[keyword] = plr
 		} else {
 			// Token doesn't exist.
 			continue
@@ -253,26 +336,6 @@ func (bt *BTreeIndex) Retrieval(must []string, should []string, not []string, k 
 			continue
 		}
 	}
-
-	// 计算bm25 参考:https://www.jianshu.com/p/1e498888f505
-	for i, hit := range result {
-		for keyword, docs := range table {
-			doc := (PostingList)(docs).Find(int(hit.ID))
-			if doc == nil {
-				continue
-			}
-
-			d := float64(doc.DocLen)
-			avg := float64(bt.Len) / float64(bt.DocNum)
-			idf := math.Log2(float64(bt.DocNum)/float64(keyword.DF) + 1)
-			k1 := float64(2)
-			b := 0.75
-			result[i].BM25 += idf * float64(doc.TF) * (k1 + 1) / (float64(doc.TF) + k1*(1-b+b*d/avg))
-		}
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].BM25 > result[j].BM25 //降序
-	})
 
 	if len(result) > k {
 		return result[:k]

@@ -105,10 +105,11 @@ func main() {
 	flag.StringVar(&module, "m", "", "[indexer|searcher|merger|cluster]")
 
 	//searcher
-	var query, source, modelFile string
+	var query, source, modelFile, searchModel string
 	flag.StringVar(&query, "q", "Album Jordan", "search query")
 	flag.StringVar(&source, "source", "", "[local|remote]")
-	flag.StringVar(&modelFile, "model_file", "", "paraphrase model file")
+	flag.StringVar(&searchModel, "search_model", "", "[boolean|bm25|vs]")
+	flag.StringVar(&modelFile, "paraphrase_file", "", "paraphrase model file")
 
 	//indexer
 	var sharding bool
@@ -166,7 +167,7 @@ func main() {
 		log.Printf("Search found %d documents in %v", len(matched), time.Since(start))
 		for _, d := range matched {
 			doc := docs[d.ID]
-			log.Printf("%d\t%s\n", d.ID, doc.Text)
+			log.Printf("docId:%d\t%s\n", d.ID, doc.Text)
 		}
 	} else if module == "merger" {
 		singleton.Merge(srcPath, dstPath)

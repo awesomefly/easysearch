@@ -43,19 +43,19 @@ func TestBTreeIndex(t *testing.T) {
 	//idx.Add([]store.Document{{ID: 1, Text: "A donut on a glass plate. Only the."}})
 	//idx.Add([]store.Document{{ID: 2, Text: "donut is a donut"}})
 	fmt.Printf("Lookup: %+v\n", idx.Lookup("donut", false))
-	fmt.Printf("Retrieval: %+v\n", idx.Retrieval([]string{"glass"}, []string{"donut"}, nil, 100, 10))
+	fmt.Printf("Retrieval: %+v\n", idx.BooleanRetrieval([]string{"glass"}, []string{"donut"}, nil, 100, 10))
 
-	assert.Nil(t, idx.Retrieval([]string{"a"}, nil, nil, 100, 10))
+	assert.Nil(t, idx.BooleanRetrieval([]string{"a"}, nil, nil, 100, 10))
 
-	ids := GetIDs(idx.Retrieval([]string{"donut"}, nil, nil, 100, 10))
+	ids := GetIDs(idx.BooleanRetrieval([]string{"donut"}, nil, nil, 100, 10))
 	assert.Equal(t, []int{2, 1}, ids)
-	assert.Equal(t, []int{2, 1}, GetIDs(idx.Retrieval(util.Analyze("DoNuts"), nil, nil, 100, 10)))
-	assert.Equal(t, []int{1}, GetIDs(idx.Retrieval([]string{"glass"}, nil, nil, 100, 10)))
+	assert.Equal(t, []int{2, 1}, GetIDs(idx.BooleanRetrieval(util.Analyze("DoNuts"), nil, nil, 100, 10)))
+	assert.Equal(t, []int{1}, GetIDs(idx.BooleanRetrieval([]string{"glass"}, nil, nil, 100, 10)))
 
-	assert.Nil(t, GetIDs(idx.Retrieval([]string{"a"}, nil, nil, 100, 10)))
-	assert.Equal(t, []int{2, 1}, GetIDs(idx.Retrieval([]string{"donut"}, nil, nil, 100, 10)))
-	assert.Equal(t, []int{2, 1}, GetIDs(idx.Retrieval(util.Analyze("DoNuts"), nil, nil, 100, 10)))
-	assert.Equal(t, []int{1}, GetIDs(idx.Retrieval([]string{"glass"}, nil, nil, 100, 10)))
+	assert.Nil(t, GetIDs(idx.BooleanRetrieval([]string{"a"}, nil, nil, 100, 10)))
+	assert.Equal(t, []int{2, 1}, GetIDs(idx.BooleanRetrieval([]string{"donut"}, nil, nil, 100, 10)))
+	assert.Equal(t, []int{2, 1}, GetIDs(idx.BooleanRetrieval(util.Analyze("DoNuts"), nil, nil, 100, 10)))
+	assert.Equal(t, []int{1}, GetIDs(idx.BooleanRetrieval([]string{"glass"}, nil, nil, 100, 10)))
 
 	idx.Close()
 }

@@ -16,6 +16,7 @@ require (
 	github.com/serialx/hashring v0.0.0-20200727003509-22c0c7ab6b1b
 	github.com/stretchr/testify v1.7.0
 	github.com/xtgo/set v1.0.0
+	github.com/yourbasic/bloom v0.0.0-20170602163913-04a87e707a81
 	github.com/ziutek/blas v0.0.0-20190227122918-da4ca23e90bb // indirect
 	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect

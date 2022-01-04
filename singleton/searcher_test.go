@@ -23,7 +23,7 @@ func randSeq(n int) string {
 
 func get(srh *Searcher, text string) []int {
 	rt := (*DoubleBuffer)(atomic.LoadPointer(&srh.RTSegment))
-	return (*rt.ReadIndex())[text].IDs()
+	return rt.ReadIndex().Map[text].IDs()
 }
 
 var searcher = NewSearcher("../data/test_insread") //必须为全局变量

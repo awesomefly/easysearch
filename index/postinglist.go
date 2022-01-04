@@ -8,7 +8,7 @@ import (
 	"github.com/xtgo/set"
 )
 
-type KeyWord struct {
+type Term struct {
 	K  string //key
 	Id int32  //key id
 	DF int32  //Document Frequency
@@ -21,21 +21,23 @@ type Doc struct {
 
 	TF   int32   //词频
 	BM25 float64 //bm25 score
+	Cosine float64 //Cosine score
+
 }
 
-func (it Doc) Bytes() []byte {
+func (doc Doc) Bytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	err := binary.Write(buffer, binary.LittleEndian, it)
+	err := binary.Write(buffer, binary.LittleEndian, doc)
 	if err != nil {
 		panic(err)
 	}
 	return buffer.Bytes()
 }
 
-func (it *Doc) FromBytes(b []byte) {
+func (doc *Doc) FromBytes(b []byte) {
 	buffer := bytes.NewBuffer(b)
 
-	err := binary.Read(buffer, binary.LittleEndian, it)
+	err := binary.Read(buffer, binary.LittleEndian, doc)
 	if err != nil {
 		panic(err)
 	}

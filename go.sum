@@ -5,10 +5,6 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/ajstarks/svgo v0.0.0-20180226025133-644b8db467af/go.mod h1:K08gAheRH3/J6wwsYMMT4xOr94bZjxIelGM0+d/wbFw=
 github.com/apache/arrow/go/arrow v0.0.0-20200909005831-30143fc493df h1:iXnL0pMIR/RDUWl0kCbc0CQ3UyehlyV+t/DYCLJTbFc=
 github.com/apache/arrow/go/arrow v0.0.0-20200909005831-30143fc493df/go.mod h1:QNYViu/X0HXDHw7m3KXzWSVXIbfUvJqBFe6Gj8/pYA0=
-github.com/awesomefly/gobtree v0.0.0-20211130043348-0748731d20a2 h1:EGSwLYk2QuJCoRD6lr+whtYD/mTOTq7d+X5dABIiR50=
-github.com/awesomefly/gobtree v0.0.0-20211130043348-0748731d20a2/go.mod h1:lboVzCOn4VFuTbHQP+fUle8L3O0cJptD0fkl0UMUJ90=
-github.com/awesomefly/gobtree v0.0.0-20211221091127-8ca972b3345e h1:SbGq04AASoRn5upwET0hz/bnwp+/AMCNITS3o8vEkb4=
-github.com/awesomefly/gobtree v0.0.0-20211221091127-8ca972b3345e/go.mod h1:lboVzCOn4VFuTbHQP+fUle8L3O0cJptD0fkl0UMUJ90=
 github.com/awesomefly/gobtree v0.0.0-20211221104356-310dd71c2899 h1:e9zAke/LBokn1J69WLg0KKy1+y9oCCUo1Pr4pYPMsnY=
 github.com/awesomefly/gobtree v0.0.0-20211221104356-310dd71c2899/go.mod h1:lboVzCOn4VFuTbHQP+fUle8L3O0cJptD0fkl0UMUJ90=
 github.com/chewxy/hm v1.0.0 h1:zy/TSv3LV2nD3dwUEQL2VhXeoXbb9QkpmdRAVUFiA6k=
@@ -63,6 +59,8 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/xtgo/set v1.0.0 h1:6BCNBRv3ORNDQ7fyoJXRv+tstJz3m1JVFQErfeZz2pY=
 github.com/xtgo/set v1.0.0/go.mod h1:d3NHzGzSa0NmB2NhFyECA+QdRp29oEn2xbT+TpeFoM8=
+github.com/yourbasic/bloom v0.0.0-20170602163913-04a87e707a81 h1:3xwAhXlsVgB73FD/vkbk/WiiKJC6yWJpZCD479tUw1Q=
+github.com/yourbasic/bloom v0.0.0-20170602163913-04a87e707a81/go.mod h1:agXvFaG1tjoCJrAD+5PtBJ0pd3DlAU62kKokkpUR/fY=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/ziutek/blas v0.0.0-20190227122918-da4ca23e90bb h1:uWiILQloLUVdtPYr1ZZo2zqtlpzo4G8vUpglo/Fs2H8=
