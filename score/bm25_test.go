@@ -94,24 +94,24 @@ func Example_BM25() {
 	// Output:
 	// Top 3 Relevant Docs to "Ishmael":
 	//	ID   : 0
-	//	Score: 3.706
+	//	QualityScore: 3.706
 	//	Doc  : "Call me Ishmael ."
 	//	ID   : 1
-	//	Score: 0.000
+	//	QualityScore: 0.000
 	//	Doc  : "Some years ago -- never mind how long precisely -- having little or no money in my purse , and nothing particular to interest me on shore , I thought I would sail about a little and see the watery part of the world ."
 	//	ID   : 2
-	//	Score: 0.000
+	//	QualityScore: 0.000
 	//	Doc  : "It is a way I have of driving off the spleen and regulating the circulation ."
 	//
 	// Top 3 Relevant Docs to "whenever i find":
 	//	ID   : 3
-	//	Score: 2.031
+	//	QualityScore: 2.031
 	//	Doc  : "Whenever I find myself growing grim about the mouth ; "
 	//	ID   : 4
-	//	Score: 1.982
+	//	QualityScore: 1.982
 	//	Doc  : "whenever it is a damp , drizzly November in my soul ; "
 	//	ID   : 5
-	//	Score: 1.810
+	//	QualityScore: 1.810
 	//	Doc  : "whenever I find myself involuntarily pausing before coffin warehouses , and bringing up the rear of every funeral I meet ; "
 
 }

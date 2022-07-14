@@ -9,13 +9,13 @@ import (
 	"code.sajari.com/word2vec"
 )
 
-type Model struct {
+type ParaphraseModel struct {
 	path string
 	mode *word2vec.Model
 }
 
-func NewModel(path string) *Model {
-	return &Model{
+func NewModel(path string) *ParaphraseModel {
+	return &ParaphraseModel{
 		path: path,
 		mode: load(path),
 	}
@@ -41,7 +41,7 @@ func load(path string) *word2vec.Model {
 }
 
 //GetSimilar 语义改写、近义词
-func (m *Model) GetSimilar(positive []string, negative []string, n int) []string {
+func (m *ParaphraseModel) GetSimilar(positive []string, negative []string, n int) []string {
 	// Create an expression.
 	expr := word2vec.Expr{}
 	for _, text := range positive {
@@ -51,7 +51,7 @@ func (m *Model) GetSimilar(positive []string, negative []string, n int) []string
 		expr.Add(-1, text)
 	}
 
-	// Find the most similar result by cosine similarity.
+	// Hit the most similar result by cosine similarity.
 	matches, err := m.mode.CosN(expr, n)
 	if err != nil {
 		log.Fatalf("error evaluating cosine similarity: %v", err)

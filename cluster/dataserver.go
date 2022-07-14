@@ -7,14 +7,14 @@ import (
 	"github.com/awesomefly/easysearch/config"
 
 	"github.com/awesomefly/easysearch/index"
-	"github.com/awesomefly/easysearch/singleton"
+	"github.com/awesomefly/easysearch/search"
 )
 
 type DataServer struct {
 	self    Node
 	cluster Cluster
 
-	sharding map[int]*singleton.Searcher
+	sharding map[int]*search.Searcher
 	server   *Server
 }
 
@@ -26,7 +26,7 @@ func NewDataServer(config *config.Config) *DataServer {
 			Host: config.Server.Address(),
 		},
 		server:   &Server{name: "Data", network: "tcp", address: config.Server.Address()},
-		sharding: make(map[int]*singleton.Searcher, 0),
+		sharding: make(map[int]*search.Searcher, 0),
 	}
 
 	n := Node{}
@@ -49,7 +49,7 @@ func NewDataServer(config *config.Config) *DataServer {
 	}
 
 	for _, shard := range ds.self.LeaderSharding {
-		searcher := singleton.NewSearcher(fmt.Sprintf("%s.%d", config.Store.IndexFile, shard))
+		searcher := search.NewSearcher(fmt.Sprintf("%s.%d", config.Store.IndexFile, shard))
 		if config.Store.ModelFile != "" {
 			searcher.InitParaphrase(config.Store.ModelFile)
 		}
@@ -57,7 +57,7 @@ func NewDataServer(config *config.Config) *DataServer {
 	}
 
 	for _, shard := range ds.self.FollowerSharding {
-		searcher := singleton.NewSearcher(fmt.Sprintf("%s.%d", config.Store.IndexFile, shard))
+		searcher := search.NewSearcher(fmt.Sprintf("%s.%d", config.Store.IndexFile, shard))
 		if config.Store.ModelFile != "" {
 			searcher.InitParaphrase(config.Store.ModelFile)
 		}

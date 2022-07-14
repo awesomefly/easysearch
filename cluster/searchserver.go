@@ -79,7 +79,7 @@ func (s *SearchServer) SearchAll(query string, response *[]index.Doc) error {
 
 	//sort and uniq result
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].BM25 > result[j].BM25 //降序
+		return result[i].Score > result[j].Score //降序
 	})
 	*response = result
 	return nil

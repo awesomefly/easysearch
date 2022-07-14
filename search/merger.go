@@ -1,4 +1,4 @@
-package singleton
+package search
 
 import (
 	"log"

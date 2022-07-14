@@ -15,14 +15,13 @@ type Term struct {
 }
 
 type Doc struct {
-	ID     int32   //doc id
-	DocLen int32   //doc length
-	Score  float64 //静态分
+	ID           int32   //doc id
+	DocLen       int32   //doc length
 
-	TF   int32   //词频
-	BM25 float64 //bm25 score
-	Cosine float64 //Cosine score
+	TF     int32   //词频, eg. 在倒排表term->[doc1,doc2,doc3]中，仅表示term在docX中的词频
+	QualityScore float64 //静态分、质量分
 
+	Score  float64 //bm25/Cosine score used by sort
 }
 
 func (doc Doc) Bytes() []byte {
@@ -52,9 +51,9 @@ func (pl PostingList) Swap(i, j int) {
 }
 
 func (pl PostingList) Find(id int) *Doc {
-	for _, item := range pl {
-		if item.ID == int32(id) {
-			return &item
+	for i := 0; i < pl.Len(); i++ {
+		if pl[i].ID == int32(id) {
+			return &pl[i]
 		}
 	}
 	return nil
@@ -92,6 +91,10 @@ func (pl *PostingList) Filter(docs []Doc) {
 	*pl = append(*pl, inter...)
 	size = set.Diff(pl, l)
 	*pl = (*pl)[:size]
+}
+
+func (pl *PostingList) Append(docs ...Doc) {
+	*pl = append(*pl, docs...)
 }
 
 func (pl PostingList) Bytes() []byte {

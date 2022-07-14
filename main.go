@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/awesomefly/easysearch/index"
-	"github.com/awesomefly/easysearch/singleton"
+	"github.com/awesomefly/easysearch/search"
 )
 
 func startStandaloneCluster() error {
@@ -75,7 +75,7 @@ func startStandaloneCluster() error {
 	return nil
 }
 
-func startProfile()  {
+func startProfile() {
 	f, err := os.OpenFile("cpu.pprof", os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatal(err)
@@ -136,24 +136,19 @@ func main() {
 		if sharding {
 			cluster.Index(conf)
 		} else {
-			singleton.Index(*conf) //todo: 构建索引耗时过长，性能分析下具体耗时原因
+			search.Index(*conf) //todo: 构建索引耗时过长，性能分析下具体耗时原因
 		}
 	} else if module == "searcher" {
-		docs, err := index.LoadDocuments(conf.Store.DumpFile)
-		if err != nil {
-			log.Fatal(err)
-			return
-		}
-
 		start := time.Now()
 		var matched []index.Doc
+		var err error
 		if source == "local" {
 			log.Println("Starting local search..")
-			searcher := singleton.NewSearcher(conf.Store.IndexFile)
+			searcher := search.NewSearcher(conf.Store.IndexFile)
 			if modelFile != "" {
 				searcher.InitParaphrase(modelFile)
 			}
-			log.Printf("index loaded %d keys in %v", searcher.Segment.BT.Count(), time.Since(start))
+			log.Printf("index loaded %d keys in %v", searcher.Count() , time.Since(start))
 			matched = searcher.Search(query)
 		} else if source == "remote" {
 			log.Println("Starting remote search..")
@@ -165,12 +160,8 @@ func main() {
 			}
 		}
 		log.Printf("Search found %d documents in %v", len(matched), time.Since(start))
-		for _, d := range matched {
-			doc := docs[d.ID]
-			log.Printf("docId:%d\t%s\n", d.ID, doc.Text)
-		}
 	} else if module == "merger" {
-		singleton.Merge(srcPath, dstPath)
+		search.Merge(srcPath, dstPath)
 	} else if module == "cluster" {
 		if host != "" && port != 0 {
 			conf.Server.Host = host

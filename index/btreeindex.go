@@ -54,15 +54,10 @@ var DefaultConfig = btree.Config{
 type BTreeIndex struct {
 	//skip-list vs btree:
 	//https://stackoverflow.com/questions/256511/skip-list-vs-binary-search-tree/28270537#28270537
-	BT *btree.BTree
-
-	// DocNum is the count of documents
-	DocNum int
-
-	// Len is the total length of docs
-	Len int
-
+	BT        *btree.BTree
 	IndexFile string
+
+	property Property
 }
 
 func NewBTreeIndex(file string) *BTreeIndex {
@@ -71,6 +66,11 @@ func NewBTreeIndex(file string) *BTreeIndex {
 	bt := BTreeIndex{
 		IndexFile: file,
 		BT:        btree.NewBTree(btree.NewStore(conf)), // todo: 索引文件太大，索引压缩、posting list压缩
+		property: Property{
+			docNum:     0,
+			tokenCount: 0,
+			dataRange: DataRange{Start: 0, End: 0},
+		},
 	}
 
 	bt.Load()
@@ -88,11 +88,18 @@ func (bt *BTreeIndex) Save() {
 	}
 
 	buffer := bytes.NewBuffer([]byte{})
-	if err := binary.Write(buffer, binary.LittleEndian, int32(bt.DocNum)); err != nil {
+	if err := binary.Write(buffer, binary.LittleEndian, int32(bt.property.docNum)); err != nil {
 		panic(err)
 	}
 
-	if err := binary.Write(buffer, binary.LittleEndian, int32(bt.Len)); err != nil {
+	if err := binary.Write(buffer, binary.LittleEndian, int32(bt.property.tokenCount)); err != nil {
+		panic(err)
+	}
+
+	if err := binary.Write(buffer, binary.LittleEndian, int32(bt.property.dataRange.Start)); err != nil {
+		panic(err)
+	}
+	if err := binary.Write(buffer, binary.LittleEndian, int32(bt.property.dataRange.End)); err != nil {
 		panic(err)
 	}
 
@@ -110,7 +117,7 @@ func (bt *BTreeIndex) Load() {
 		panic(err.Error())
 	}
 
-	data := make([]byte, unsafe.Sizeof(bt.DocNum)+unsafe.Sizeof(bt.Len))
+	data := make([]byte, unsafe.Sizeof(bt.property.docNum)+unsafe.Sizeof(bt.property.tokenCount))
 	if n, err := fd.Read(data); err != nil {
 		if n == 0 && err == io.EOF {
 			return
@@ -119,11 +126,17 @@ func (bt *BTreeIndex) Load() {
 	}
 
 	buffer := bytes.NewBuffer(data)
-	if err := binary.Read(buffer, binary.LittleEndian, (*int32)(unsafe.Pointer(&bt.DocNum))); err != nil {
+	if err := binary.Read(buffer, binary.LittleEndian, (*int32)(unsafe.Pointer(&bt.property.docNum))); err != nil {
 		panic(err.Error())
 	}
 
-	if err := binary.Read(buffer, binary.LittleEndian, (*int32)(unsafe.Pointer(&bt.Len))); err != nil {
+	if err := binary.Read(buffer, binary.LittleEndian, (*int32)(unsafe.Pointer(&bt.property.tokenCount))); err != nil {
+		panic(err.Error())
+	}
+	if err := binary.Read(buffer, binary.LittleEndian, (*int32)(unsafe.Pointer(&bt.property.dataRange.Start))); err != nil {
+		panic(err.Error())
+	}
+	if err := binary.Read(buffer, binary.LittleEndian, (*int32)(unsafe.Pointer(&bt.property.dataRange.End))); err != nil {
 		panic(err.Error())
 	}
 
@@ -137,7 +150,26 @@ func (bt *BTreeIndex) Close() {
 }
 
 func (bt *BTreeIndex) Clear() {
-	//todo: delete deprecated index
+	bt.Close()
+
+	// delete deprecated index
+	os.Remove(bt.IndexFile + ".sum")
+	os.Remove(bt.IndexFile + ".idx")
+	os.Remove(bt.IndexFile + ".kv")
+}
+
+func (bt *BTreeIndex) Keys() []string {
+	keys := make(sort.StringSlice, bt.Property().tokenCount)
+
+	ch := bt.BT.KeySet()
+	for {
+		key := <-ch
+		if key == nil {
+			break
+		}
+		keys = append(keys, string(key))
+	}
+	return keys
 }
 
 func (bt *BTreeIndex) Lookup(token string, dirty bool) PostingList {
@@ -147,7 +179,7 @@ func (bt *BTreeIndex) Lookup(token string, dirty bool) PostingList {
 	if dirty {
 		ch = bt.BT.LookupDirty(key)
 	} else {
-		ch = bt.BT.Lookup(key) //todo: btree内部节点key值直接查文件，用kdping缓存加速查询
+		ch = bt.BT.Lookup(key)
 	}
 	values := make([][]byte, 0)
 	for {
@@ -167,178 +199,64 @@ func (bt *BTreeIndex) Lookup(token string, dirty bool) PostingList {
 	return p
 }
 
+// Add 该方法比较低效，批量插入文档会在posting list后不段追加新文档，但postinglist并未预留空间，
+// 因此需要移动到新的空间，导致文件数据拷贝
 func (bt *BTreeIndex) Add(docs []Document) {
 	for _, doc := range docs {
 		tokens := util.Analyze(doc.Text)
 		for _, token := range tokens {
 			//log.Printf("token:%s", token)
-
 			key := &btree.TestKey{K: token}
 			postingList := bt.Lookup(token, true)
 			if postingList != nil {
-				if last := &postingList[len(postingList)-1]; last.ID == int32(doc.ID) {
+				if last := postingList.Find(doc.ID); last != nil {
 					// Don't add same ID twice. But should update frequency
 					last.TF++
-					last.Score = CalDocScore(last.TF, 0)
+					last.QualityScore = CalDocScore(last.TF, 0)
 					bt.BT.Insert(key, postingList)
 					continue
 				}
 			}
 			item := Doc{
-				ID:     int32(doc.ID),
-				DocLen: int32(len(tokens)),
-				TF:     1,
-				Score:  CalDocScore(1, 0),
+				ID:           int32(doc.ID),
+				DocLen:       int32(len(tokens)),
+				TF:           1,
+				QualityScore: CalDocScore(1, 0),
 			}
 			//add to posting list & sort by score
-			//todo: 数组不适合频繁写，考虑其他数据结构优化，先找到
 			postingList = append(postingList, item)
 			sort.Slice(postingList, func(i, j int) bool {
-				return postingList[i].Score > postingList[j].Score
+				return postingList[i].QualityScore > postingList[j].QualityScore
 			})
 			bt.BT.Insert(key, postingList)
 		}
-		bt.DocNum++
-		bt.Len += len(tokens) // todo: adding only unique words
+		bt.property.docNum++
+		bt.property.tokenCount += len(tokens)
 	}
 	bt.BT.Drain()
 }
 
-func (bt *BTreeIndex) Get(terms []string, r int) map[Term][]Doc {
-	result := make(map[Term][]Doc, len(terms))
-	for _, term := range terms {
-		if postingList := bt.Lookup(term, false); postingList != nil {
-			l := postingList[:IfElseInt(len(postingList) > r, r, len(postingList))] //胜者表按frequency排序,截断前r个,加速归并
-			result[Term{K: term, DF: int32(len(postingList))}] = l
-		} else {
-			result[Term{K: term}] = nil
-		}
-	}
-	return result
+func (bt *BTreeIndex) Insert(key string, pl PostingList) {
+	bt.BT.Insert(&btree.TestKey{K: key}, pl)
+	bt.property.docNum += pl.Len()
+	bt.property.tokenCount++
 }
 
-//VecSpaceRetrieval 向量空间检索
-func (bt *BTreeIndex) VecSpaceRetrieval(terms []string, k int, r int) []Doc {
-	tfidf := NewTFIDF()
-
-	//query's term frequency
-	queryDocId := int32(-1)
-	tfidf.DOC[queryDocId] = make(TF, 0)
-
-	var result PostingList
-	for _, term := range terms {
-		tfidf.DOC[queryDocId][term]++
-		if pl := bt.Lookup(term, false); pl != nil {
-			plr := pl[:IfElseInt(len(pl) > r, r, len(pl))]
-			//sort.Sort(plr)  //Union中会先sort在diff
-			if result == nil {
-				result = plr //胜者表，截断r
-			} else {
-				result.Union(plr)
-			}
-
-			tfidf.IDF[term] = CalIDF(bt.DocNum, len(pl))
-			for _, doc := range plr {
-				tf := tfidf.DOC[doc.ID]
-				if tf == nil {
-					tf = make(TF, 0)
-				}
-				tf[term] = doc.TF
-				tfidf.DOC[doc.ID] = tf
-			}
-		} else {
-			// Token doesn't exist.
-			continue
-		}
+func (bt *BTreeIndex) Get(term string) []Doc {
+	if postingList := bt.Lookup(term, false); postingList != nil {
+		return postingList
 	}
-
-	result = CalCosine(result, tfidf)
-	return result
+	return nil
 }
 
-//ProbRetrieval 概率检索模型，常用BM25
-func (bt *BTreeIndex) ProbRetrieval(terms []string, k int, r int) []Doc {
-	tfidf := NewTFIDF()
-
-	var result PostingList
-	for _, term := range terms {
-		if pl := bt.Lookup(term, false); pl != nil {
-			plr := pl[:IfElseInt(len(pl) > r, r, len(pl))]
-			// sort.Sort(plr)  Union中会先sort在diff
-			if result == nil {
-				result = plr //胜者表，截断r
-			} else {
-				result.Union(plr)
-			}
-
-			tfidf.IDF[term] = CalIDF(bt.DocNum, len(pl))
-			for _, doc := range plr {
-				tf := tfidf.DOC[doc.ID]
-				if tf == nil {
-					tf = make(TF, 0)
-				}
-				tf[term] = doc.TF
-				tfidf.DOC[doc.ID] = tf
-			}
-		} else {
-			// Token doesn't exist.
-			continue
-		}
-	}
-
-	//log.Printf("result len:%d\n", len(result))
-	result = CalBM25(result, tfidf, bt.Len, bt.DocNum)
-	if len(result) > k {
-		return result[:k]
-	}
-	return result
+func (bt *BTreeIndex) Property() *Property {
+	return &bt.property
 }
 
-// BooleanRetrieval 布尔检索
-func (bt *BTreeIndex) BooleanRetrieval(must []string, should []string, not []string, k int, r int) []Doc {
-	var result PostingList
-	for _, term := range must {
-		if pl := bt.Lookup(term, false); pl != nil {
-			plr := pl[:IfElseInt(len(pl) > r, r, len(pl))] //胜者表按frequency排序,截断前r个,加速归并
-			sort.Sort(plr)
-			if result == nil {
-				result = plr
-			} else {
-				result.Inter(plr)
-			}
-		} else {
-			// Token doesn't exist.
-			continue
-		}
-	}
+func (bt *BTreeIndex) SetProperty(p Property) {
+	bt.property = p
+}
 
-	for _, term := range should {
-		if pl := bt.Lookup(term, false); pl != nil {
-			plr := pl[:IfElseInt(len(pl) > r, r, len(pl))]
-			sort.Sort(plr)
-			if result == nil {
-				result = plr //胜者表，截断r
-			} else {
-				result.Union(plr)
-			}
-		} else {
-			// Token doesn't exist.
-			continue
-		}
-	}
-
-	for _, term := range not {
-		if pl := bt.Lookup(term, false); pl != nil {
-			sort.Sort(pl)
-			result.Filter(pl)
-		} else {
-			// Token doesn't exist.
-			continue
-		}
-	}
-
-	if len(result) > k {
-		return result[:k]
-	}
-	return result
+func (bt *BTreeIndex) Retrieval(must []string, should []string, not []string, k int, r int, m SearchModel) []Doc {
+	return DoRetrieval(bt, must, should, not, k, r, m)
 }
