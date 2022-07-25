@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/awesomefly/easysearch/config"
@@ -20,10 +21,38 @@ type Indexer interface {
 	Merge(file string)
 }
 
-const SpiltThresholdDocNum int = 100000
+const SpiltThresholdDocNum int = 50000
 func Index(c config.Config) {
 	log.Println("Starting index...")
 
+	//remove old index files
+	IndexDir := filepath.Dir(c.Store.IndexFile)
+	IndexPathPrefix := "_tmp." + filepath.Base(c.Store.IndexFile)
+	reg, _ := regexp.Compile(IndexPathPrefix + ".*")
+	if err := Remove(IndexDir, reg); err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	reg1, _ := regexp.Compile("^" + filepath.Base(c.Store.IndexFile) + ".*")
+	if err := Remove(filepath.Dir(c.Store.IndexFile), reg1); err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	//文件太大，先拆分生成小文件，在内存中构造到排表，最后再归并到一个索引文件
+	//无法直接在文件中构建构建索引，因为posting list在文件中是连续存储的，随着posting list逐渐变长，需要不断的拷贝到新空间
+	Spilt(c, IndexDir+"/"+IndexPathPrefix)
+
+	//归并合并
+	files, err := Walk(IndexDir, reg)
+	if err != nil {
+		panic(err)
+	}
+	MergeAll(c, files)
+}
+
+func Spilt(c config.Config, filePrefix string) (files []string) {
 	start := time.Now()
 	//1. spilt to small file.
 	ch, err := index.LoadDocumentStream(c.Store.DumpFile)
@@ -31,48 +60,48 @@ func Index(c config.Config) {
 		log.Fatal(err)
 		return
 	}
-	//remove old index files
-	IndexDir := filepath.Dir(c.Store.IndexFile)
-	IndexPathPrefix := "_tmp." + filepath.Base(c.Store.IndexFile)
-	reg,_ := regexp.Compile(IndexPathPrefix + ".*")
-	if err = Remove(IndexDir, reg); err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	reg1, _ := regexp.Compile("^" + filepath.Base(c.Store.IndexFile) + ".*")
-	if err = Remove(filepath.Dir(c.Store.IndexFile), reg1); err != nil {
-		log.Fatal(err)
-		return
-	}
 
 	//2. index and dump posting list
 	idx := index.NewHashMapIndex()
+
+	WriteToFile := func() string {
+		file := fmt.Sprintf("%s.%d", filePrefix, time.Now().Nanosecond())
+		fmt.Printf("Loaded all docs, Drain to file: %s \n", file)
+
+		index.Drain(idx, file)
+		return file
+	}
+
 	for {
 		//timeout := time.NewTimer(1 * time.Second)
 		select {
 		case doc := <-ch:
 			if doc == nil {
-				fmt.Println("All doc have been read.")
-				index.Drain(idx, fmt.Sprintf("%s.%d", IndexDir+"/"+IndexPathPrefix, time.Now().Nanosecond()))
+				file := WriteToFile()
+				files = append(files, file)
 				break
 			}
+
 			idx.Add([]index.Document{*doc}) //内存中操作
 			if idx.Property().DocNum() >= SpiltThresholdDocNum {
-				index.Drain(idx, fmt.Sprintf("%s.%d", IndexDir+"/"+IndexPathPrefix, time.Now().Nanosecond()))
+				file := WriteToFile()
+				files = append(files, file)
+
 				idx.Clear()
 			}
 			continue
-		//case <-timeout.C:
-		//	log.Printf("Read timeout. err: %s", err.Error())
-		//	break
+			//case <-timeout.C:
+			//	log.Printf("Read timeout. err: %s", err.Error())
+			//	break
 		}
 		break
 	}
 	log.Printf("Dump all documents in %v.", time.Since(start))
+	return files
+}
 
+func MergeAll(c config.Config, files []string) {
 	var chs []chan *index.KVPair
-	files, err := Walk(IndexDir, reg)
 	for i := 0; i < len(files); i++ {
 		chl, err := index.Load(files[i])
 		if err != nil {
@@ -81,7 +110,7 @@ func Index(c config.Config) {
 		chs = append(chs, chl)
 	}
 
-	start = time.Now()
+	start := time.Now()
 	bt := index.NewBTreeIndex(c.Store.IndexFile)
 
 	//3. merge posting list
@@ -127,6 +156,7 @@ func Index(c config.Config) {
 		}
 
 		//4. insert "word->posting list"
+		sort.Sort(pairs[pivot].Value)
 		bt.Insert(pairs[pivot].Key, pairs[pivot].Value)
 		pairs[pivot] = nil
 	}

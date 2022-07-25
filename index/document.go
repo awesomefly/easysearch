@@ -101,7 +101,7 @@ func LoadDocumentStream(path string) (chan *Document, error) {
 					id++
 					doc.ID = id
 					ch <- &doc
-					if id % 1000 == 0 {
+					if id % 5000 == 0 {
 						fmt.Printf("load %d docs\n", id)
 					}
 				}

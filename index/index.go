@@ -1,6 +1,7 @@
 package index
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"log"
@@ -123,10 +124,16 @@ func Drain(idx Index, file string) {
 		return
 	}
 
-	fd, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0660)
+	fd, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0660)
 	if err != nil {
 		panic(err.Error())
 	}
+
+	writer := bufio.NewWriter(fd)
+	defer func() {
+		writer.Flush()
+		fd.Close()
+	}()
 
 	keys := idx.Keys()
 	sort.Strings(keys)
@@ -155,11 +162,10 @@ func Drain(idx Index, file string) {
 			panic(err)
 		}
 
-		if _, err := fd.Write(buffer.Bytes()); err != nil {
+		if _, err := writer.Write(buffer.Bytes()); err != nil {
 			panic(err)
 		}
 	}
-	fd.Close()
 }
 
 // Load file.

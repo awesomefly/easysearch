@@ -2,8 +2,9 @@ package search
 
 import (
 	"github.com/awesomefly/easysearch/config"
-	"github.com/stretchr/testify/assert"
+	"github.com/awesomefly/easysearch/index"
 	"regexp"
+	"runtime"
 	"testing"
 )
 
@@ -14,16 +15,19 @@ func TestIndexer(t *testing.T) {
 }
 
 func TestIndex(t *testing.T) {
-	return
+	runtime.GOMAXPROCS(2)
 	conf := config.Config {
 		Store:config.Storage {
-			DumpFile:  "../data/enwiki-latest-abstract18.xml.gz",
+			DumpFile:  "../data/enwiki-latest-abstract27.xml.gz",
 			IndexFile: "../data/enwiki_idx",
 		},
 	}
 
 
 	Index(conf)
-	r := recover()
-	assert.Nil(t, r)
+	//r := recover()
+	//assert.Nil(t, r)
+
+	bt := index.NewBTreeIndex(conf.Store.IndexFile)
+	bt.BT.Stats(true)
 }
